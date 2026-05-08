@@ -1,7 +1,7 @@
 {
-  "name": "apkpure-sdk",
+  "name": "apkpure",
   "version": "1.0.0",
-  "description": "TypeScript SDK for APKPure — search, info, download Android APKs",
+  "description": "CLI tool to search, get info, and download Android APKs from APKPure",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -13,7 +13,10 @@
     }
   },
   "bin": {
-    "apkpure": "./dist/cli.js"
+    "apkpure": "./dist/cli.js",
+    "apkpure-search": "./dist/cli.js",
+    "apkpure-info": "./dist/cli.js",
+    "apkpure-download": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsup",
