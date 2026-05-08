@@ -22,7 +22,7 @@ export async function handleSkillRequest(
 ): Promise<SkillResponse> {
   const sdk = new ApkPure({
     mode: req.mode ?? "auto",
-    proxy: req.proxy ?? process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? "",
+    proxy: req.proxy,
   });
 
   try {

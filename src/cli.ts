@@ -16,8 +16,8 @@ program
   .description("Search for apps on APKPure")
   .argument("<query>", "Search query")
   .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
-  .option("-p, --proxy <proxy>", "HTTP proxy URL", process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? "")
-  .action(async (query: string, opts: { mode: string; proxy: string }) => {
+  .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
+  .action(async (query: string, opts: { mode: string; proxy?: string }) => {
     const client = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
     const result = await client.search(query);
     console.log(JSON.stringify(result, null, 2));
@@ -28,8 +28,8 @@ program
   .description("Get detailed info for an app")
   .argument("<package>", "Android package name (e.g. com.whatsapp)")
   .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
-  .option("-p, --proxy <proxy>", "HTTP proxy URL", process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? "")
-  .action(async (pkg: string, opts: { mode: string; proxy: string }) => {
+  .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
+  .action(async (pkg: string, opts: { mode: string; proxy?: string }) => {
     const client = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
     const detail = await client.getInfo(pkg);
     if (!detail) {
@@ -45,11 +45,11 @@ program
   .argument("<package>", "Android package name")
   .option("-o, --output <dir>", "Output directory", "./apks")
   .option("-v, --version <version>", "Specific version to download")
-  .option("-p, --proxy <proxy>", "HTTP proxy URL", process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? "")
+  .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .action(
     async (
       pkg: string,
-      opts: { output: string; version?: string; proxy: string }
+      opts: { output: string; version?: string; proxy?: string }
     ) => {
       mkdirSync(opts.output, { recursive: true });
       const sdk = new ApkPure({ proxy: opts.proxy });
@@ -71,8 +71,8 @@ program
 program
   .command("trending")
   .description("List trending games (24h)")
-  .option("-p, --proxy <proxy>", "HTTP proxy URL", process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? "")
-  .action(async (opts: { proxy: string }) => {
+  .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
+  .action(async (opts: { proxy?: string }) => {
     const sdk = new ApkPure({ proxy: opts.proxy });
     const apps = await sdk.trending();
     console.log(JSON.stringify(apps, null, 2));
@@ -82,8 +82,8 @@ program
   .command("versions")
   .description("List all available versions of an app")
   .argument("<package>", "Android package name")
-  .option("-p, --proxy <proxy>", "HTTP proxy URL", process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? "")
-  .action(async (pkg: string, opts: { proxy: string }) => {
+  .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
+  .action(async (pkg: string, opts: { proxy?: string }) => {
     const sdk = new ApkPure({ proxy: opts.proxy });
     const versions = await sdk.getVersions(pkg);
     console.log(JSON.stringify(versions, null, 2));

@@ -1,6 +1,7 @@
 import { MobileClient } from "../client/mobile-client.js";
 import { ScrapingClient } from "../client/scraping-client.js";
 import { downloadApk } from "./downloader.js";
+import { detectProxy } from "../utils/proxy.js";
 import type {
   SdkConfig,
   AppInfo,
@@ -17,14 +18,32 @@ export class ApkPure {
   private config: Required<SdkConfig>;
   private mobile: MobileClient;
   private scraper: ScrapingClient;
+  private _initPromise: Promise<void>;
 
   constructor(config?: Partial<SdkConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.mobile = new MobileClient(config);
+    this._initPromise = this._init(config);
+    this.mobile = new MobileClient({ ...config, proxy: this.config.proxy });
     this.scraper = new ScrapingClient(this.config.timeout, this.config.proxy);
   }
 
+  private async _init(config?: Partial<SdkConfig>) {
+    if (!this.config.proxy) {
+      const detected = await detectProxy();
+      if (detected) {
+        this.config.proxy = detected.url;
+        this.mobile = new MobileClient({ ...config, proxy: detected.url });
+        this.scraper = new ScrapingClient(this.config.timeout, detected.url);
+      }
+    }
+  }
+
+  private async ensureReady() {
+    await this._initPromise;
+  }
+
   async search(query: string): Promise<SearchResult> {
+    await this.ensureReady();
     if (this.config.mode === "scraping") {
       return this.scraper.search(query);
     }
@@ -59,6 +78,7 @@ export class ApkPure {
   }
 
   async getInfo(packageName: string): Promise<AppDetail | null> {
+    await this.ensureReady();
     if (this.config.mode === "scraping") {
       return this.scraper.getInfo(packageName);
     }
@@ -92,6 +112,7 @@ export class ApkPure {
   }
 
   async getVersions(packageName: string): Promise<AppVersion[]> {
+    await this.ensureReady();
     return this.scraper.getVersions(packageName);
   }
 
@@ -99,6 +120,7 @@ export class ApkPure {
     packageName: string,
     options: DownloadOptions
   ): Promise<DownloadResult> {
+    await this.ensureReady();
     const detail = await this.getInfo(packageName);
     if (!detail?.downloadUrl) {
       throw new Error(`No download URL found for "${packageName}"`);
@@ -129,6 +151,7 @@ export class ApkPure {
   }
 
   async trending(): Promise<TrendingApp[]> {
+    await this.ensureReady();
     return this.scraper.trending();
   }
 }
