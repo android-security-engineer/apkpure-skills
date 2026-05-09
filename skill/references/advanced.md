@@ -203,3 +203,71 @@ class ApkPure {
   trending(): Promise<TrendingApp[]>;
 }
 ```
+
+## CLI Output Modes
+
+All commands support two output modes:
+
+- **Human-readable** (default): formatted text with labels
+- **JSON** (`--json` flag): raw JSON for programmatic consumption
+
+### Search output (default)
+
+```
+Telegram
+  Package:  org.telegram.messenger
+  Version:  10.5.2
+  Developer: Telegram LLC
+  Category:  Communication
+  Rating:    4.8
+
+Found 19 apps.
+```
+
+### Info output (default)
+
+```
+  WhatsApp Messenger
+  Package:      com.whatsapp
+  Version:      2.24.5.14
+  Version Code: 2240514
+  Developer:    WhatsApp LLC
+  Category:     Communication
+  Rating:       4.5
+  Updated:      Jan 15, 2025
+  Requires:     Android 5.0+
+  Download:     APK available
+
+  Meta-owned messaging app with end-to-end encryption...
+```
+
+### Versions output (default)
+
+```
+Versions for org.telegram.messenger:
+
+  10.5.2 (latest)  [APK]  code=10520
+  10.5.1           [APK]  code=10510
+  10.4.3           [APK]  code=10430
+
+Total: 15 versions.
+
+Download a specific version:
+  npx apkpure download org.telegram.messenger -v 10.5.2
+```
+
+### Download output (default)
+
+```
+Downloading: Telegram (org.telegram.messenger)
+Version:     10.5.2 (latest)
+Output:      /Users/user/apks
+
+  Progress: 45.2/60.1 MB (75.2%)
+
+Download complete!
+  File:   /Users/user/apks/org.telegram.messenger-10.5.2.apk
+  Size:   60.1 MB
+  Type:   APK
+  SHA256: a1b2c3d4e5f6...
+```
