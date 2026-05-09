@@ -8,25 +8,49 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "bin": {
-    "apkpure": "./dist/cli.js",
-    "apkpure-search": "./dist/cli.js",
-    "apkpure-info": "./dist/cli.js",
-    "apkpure-download": "./dist/cli.js"
+    "apkpure": "dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
-    "cli": "node --enable-source-maps dist/cli.js"
+    "cli": "node --enable-source-maps dist/cli.js",
+    "prepublishOnly": "npm run build"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/android-security-engineer/apkpure-skills.git"
+  },
+  "keywords": [
+    "apkpure",
+    "apk",
+    "android",
+    "download",
+    "xapk",
+    "cli",
+    "search",
+    "app-store"
+  ],
+  "homepage": "https://github.com/android-security-engineer/apkpure-skills#readme",
   "dependencies": {
     "cheerio": "^1.0.0",
     "commander": "^12.1.0",
