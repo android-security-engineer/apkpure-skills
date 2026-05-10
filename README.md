@@ -1,57 +1,251 @@
 # apkpure
 
-Search, get info, list versions, and download Android APKs from APKPure — one command, zero config.
+CLI & SDK to search, inspect, and download Android APKs/XAPKs from [APKPure](https://apkpure.com) — zero config, proxy auto-detected.
+
+[![npm version](https://img.shields.io/npm/v/apkpure.svg)](https://www.npmjs.com/package/apkpure)
+[![Node.js >=20](https://img.shields.io/node/v/apkpure.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ```bash
 npx apkpure search telegram
 ```
 
-That's it. No install, no setup. Proxy auto-detected.
+No install, no setup. Works behind GFW out of the box.
 
-## Complete Workflow
+## Features
+
+- **Search** — find apps by keyword with pagination
+- **Info** — get detailed app metadata (version, size, developer, etc.)
+- **Download** — grab APK/XAPK files with SHA-256 verification
+- **Versions** — list all available versions of an app
+- **Trending** — discover trending apps
+- **Dual-mode** — mobile API + web scraping with automatic fallback
+- **Proxy auto-detection** — env vars, Clash config, port scan
+- **AI-ready** — programmatic SDK and skill handler for AI agents
+
+## Quick Start
 
 ```bash
-# 1. Search
+# Search
 npx apkpure search "whatsapp"
-npx apkpure search "微信"
+npx apkpure search "微信" --page 2
 
-# 2. Get info
+# Get app details
 npx apkpure info com.whatsapp
 
-# 3. List versions
+# List all versions
 npx apkpure versions org.telegram.messenger
 
-# 4. Download
+# Download latest APK/XAPK
 npx apkpure download com.whatsapp
+
+# Download a specific version
 npx apkpure download org.telegram.messenger -v 10.5.1
+
+# Download to a custom directory
 npx apkpure download com.whatsapp -o ~/Downloads
+
+# Output as JSON (for scripting)
+npx apkpure search telegram --json
+npx apkpure info com.whatsapp --json
 ```
 
-## Options
+## CLI Reference
 
+### Global Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-m, --mode <mode>` | API mode: `api`, `scraping`, or `auto` | `auto` |
+| `-p, --proxy <url>` | HTTP proxy URL | auto-detected |
+| `-j, --json` | Output raw JSON | — |
+
+### Commands
+
+#### `search <query>`
+
+Search for apps on APKPure.
+
+```bash
+npx apkpure search "telegram"
+npx apkpure search "微信" --page 2 --json
 ```
--p, --proxy <url>      HTTP proxy (auto-detected if omitted)
--o, --output <dir>     Download directory (default: ./apks)
--v, --version <ver>    Download specific version
--j, --json             Output raw JSON
--m, --mode <mode>      api|scraping|auto (default: auto)
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--page <num>` | Page number | `1` |
+
+#### `info <package>`
+
+Get detailed information about an app.
+
+```bash
+npx apkpure info com.whatsapp
+npx apkpure info org.telegram.messenger --json
 ```
 
-## Proxy
+#### `download <package>`
 
-Auto-detected in order: `HTTPS_PROXY` env var → Clash config → port scan (7897, 7890, 1080...). Works behind GFW without any manual config.
+Download an APK or XAPK file.
+
+```bash
+npx apkpure download com.whatsapp
+npx apkpure download org.telegram.messenger -v 10.5.1 -o ~/Downloads
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-o, --output <dir>` | Output directory | `~/.apkpure/downloads` |
+| `-v, --version <ver>` | Specific version to download | latest |
+
+#### `versions <package>`
+
+List all available versions of an app.
+
+```bash
+npx apkpure versions org.telegram.messenger
+```
+
+#### `trending`
+
+List trending apps.
+
+```bash
+npx apkpure trending
+```
+
+## Proxy Auto-Detection
+
+Works behind firewalls and GFW without manual configuration. Detection order:
+
+1. **Environment variables** — `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`
+2. **Clash config files** — reads `mixed-port` / `port` from Clash config
+3. **Port scanning** — probes common proxy ports (7897, 7890, 1080, etc.)
 
 Override if needed:
 
 ```bash
-npx apkpure search telegram --proxy http://127.011.1:7897
+npx apkpure search telegram --proxy http://127.0.0.1:7897
 ```
 
-## Install globally
+## Programmatic SDK
+
+Use as a Node.js library:
+
+```typescript
+import { ApkPure } from "apkpure";
+
+const sdk = new ApkPure({ mode: "auto" });
+
+// Search
+const { apps } = await sdk.search("telegram");
+
+// Get app details
+const detail = await sdk.getInfo("org.telegram.messenger");
+
+// Download
+const result = await sdk.download("com.whatsapp", {
+  outputDir: "/path/to/downloads",
+  version: "2.24.5",  // optional, defaults to latest
+  onProgress: (downloaded, total) => {
+    console.log(`${(downloaded / total * 100).toFixed(1)}%`);
+  },
+});
+console.log(`Downloaded: ${result.filePath}`);
+console.log(`SHA-256: ${result.sha256}`);
+
+// List versions
+const versions = await sdk.getVersions("org.telegram.messenger");
+```
+
+### SDK Types
+
+```typescript
+interface AppInfo {
+  packageName: string;
+  name: string;
+  version?: string;
+  versionCode?: number;
+  iconUrl?: string;
+  developer?: string;
+  category?: string;
+  rating?: string;
+  description?: string;
+  size?: number;
+  fileType?: "apk" | "xapk" | "apks";
+}
+
+interface AppDetail extends AppInfo {
+  downloadUrl: string;
+  updateDate?: string;
+  requiresAndroid?: string;
+  screenshots?: string[];
+}
+
+interface DownloadResult {
+  filePath: string;
+  packageName: string;
+  version: string;
+  fileType: string;
+  fileSize: number;
+  sha256: string;
+}
+```
+
+## AI Agent Integration
+
+Built-in skill handler for AI agents (Claude, GPT, etc.):
+
+```typescript
+import { handleSkillRequest } from "apkpure";
+
+const result = await handleSkillRequest({
+  action: "download",
+  package: "com.whatsapp",
+  outputDir: "/tmp/apks",  // optional, defaults to ~/.apkpure/downloads
+});
+```
+
+Supported actions: `search`, `info`, `download`, `versions`, `trending`.
+
+## Install Globally
 
 ```bash
 npm install -g apkpure
 apkpure search telegram
+```
+
+## Architecture
+
+```
+src/
+├── cli.ts                  # Commander CLI entry point
+├── skill-handler.ts        # AI agent skill handler
+├── config.ts               # Constants and defaults
+├── core/
+│   ├── apkpure.ts          # Main SDK class (dual-mode orchestration)
+│   └── downloader.ts       # File download with SHA-256 verification
+├── client/
+│   ├── mobile-client.ts    # APKPure mobile API client (signed requests)
+│   └── scraping-client.ts  # Web scraping client (Cheerio-based)
+├── types/
+│   ├── index.ts            # Public SDK types
+│   └── api.ts              # Mobile API response types
+└── utils/
+    ├── crypto.ts           # HMAC signing for mobile API
+    ├── headers.ts          # Default HTTP headers
+    ├── http.ts             # HTTP client (fetch + proxy support)
+    └── proxy.ts            # Proxy auto-detection
+```
+
+**Dual-mode strategy:** In `auto` mode, the mobile API is tried first for speed and structured data. If it fails, the scraping client falls back automatically. You can force a specific mode with `--mode api` or `--mode scraping`.
+
+## Test Coverage
+
+172 tests with 96%+ line coverage across all core modules.
+
+```bash
+npm test
 ```
 
 ## License
