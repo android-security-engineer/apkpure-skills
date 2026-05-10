@@ -11,6 +11,8 @@ import type {
 type StepContext = Record<string, unknown>;
 
 export const BUILT_IN_WORKFLOWS: Record<string, WorkflowDefinition> = {
+  // ---- Search-based workflows ----
+
   "search-and-download": {
     name: "search-and-download",
     description:
@@ -20,6 +22,7 @@ export const BUILT_IN_WORKFLOWS: Record<string, WorkflowDefinition> = {
       { action: "download", input: { package: "{{searchResult.packageName}}" }, outputKey: "downloadResult" },
     ],
   },
+
   "download-by-name": {
     name: "download-by-name",
     description:
@@ -29,6 +32,30 @@ export const BUILT_IN_WORKFLOWS: Record<string, WorkflowDefinition> = {
       { action: "download", input: { package: "{{searchResult.packageName}}" }, outputKey: "downloadResult" },
     ],
   },
+
+  "search-and-info": {
+    name: "search-and-info",
+    description:
+      "Search for an app by name and get its detailed info in one step",
+    steps: [
+      { action: "search", input: { query: "{{query}}" }, outputKey: "searchResult" },
+      { action: "info", input: { package: "{{searchResult.packageName}}" }, outputKey: "appInfo" },
+    ],
+  },
+
+  "search-and-report": {
+    name: "search-and-report",
+    description:
+      "Search for an app, then get full report (info + all versions) without needing the package name",
+    steps: [
+      { action: "search", input: { query: "{{query}}" }, outputKey: "searchResult" },
+      { action: "info", input: { package: "{{searchResult.packageName}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{searchResult.packageName}}" }, outputKey: "versions" },
+    ],
+  },
+
+  // ---- Package-based workflows ----
+
   "app-report": {
     name: "app-report",
     description:
@@ -36,6 +63,57 @@ export const BUILT_IN_WORKFLOWS: Record<string, WorkflowDefinition> = {
     steps: [
       { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
       { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+    ],
+  },
+
+  "download-latest": {
+    name: "download-latest",
+    description:
+      "Download the latest version of an app by package name, with app info included in the result",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "download", input: { package: "{{package}}" }, outputKey: "downloadResult" },
+    ],
+  },
+
+  "download-version": {
+    name: "download-version",
+    description:
+      "Download a specific version of an app by package name and version string",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "download", input: { package: "{{package}}", version: "{{version}}" }, outputKey: "downloadResult" },
+    ],
+  },
+
+  "verify-and-download": {
+    name: "verify-and-download",
+    description:
+      "Verify an app exists and get its info before downloading — ensures the package name is valid",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "download", input: { package: "{{package}}" }, outputKey: "downloadResult" },
+    ],
+  },
+
+  "info-and-versions": {
+    name: "info-and-versions",
+    description:
+      "Get app info and all available versions (alias for app-report)",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+    ],
+  },
+
+  // ---- Discovery workflows ----
+
+  "trending-and-info": {
+    name: "trending-and-info",
+    description:
+      "List trending apps and get detailed info for each (first page of trending)",
+    steps: [
+      { action: "trending", input: {}, outputKey: "trendingResult" },
     ],
   },
 };
@@ -184,24 +262,92 @@ export async function runWorkflow(
   const lastData = stepResults[stepResults.length - 1]?.data;
   let output = lastData;
 
-  if (workflowName === "search-and-download" || workflowName === "download-by-name") {
-    const dl = ctx.downloadResult as DownloadResult | undefined;
-    const sr = ctx.searchResult as AppInfo | undefined;
-    if (dl && sr) {
-      output = {
-        app: sr.name,
-        packageName: dl.packageName,
-        version: dl.version,
-        fileType: dl.fileType,
-        filePath: dl.filePath,
-        fileSize: dl.fileSize,
-        sha256: dl.sha256,
-      };
+  switch (workflowName) {
+    case "search-and-download":
+    case "download-by-name": {
+      const dl = ctx.downloadResult as DownloadResult | undefined;
+      const sr = ctx.searchResult as AppInfo | undefined;
+      if (dl && sr) {
+        output = {
+          app: sr.name,
+          packageName: dl.packageName,
+          version: dl.version,
+          fileType: dl.fileType,
+          filePath: dl.filePath,
+          fileSize: dl.fileSize,
+          sha256: dl.sha256,
+        };
+      }
+      break;
     }
-  }
-
-  if (workflowName === "app-report") {
-    output = { appInfo: ctx.appInfo, versions: ctx.versions };
+    case "search-and-info": {
+      const sr = ctx.searchResult as AppInfo | undefined;
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      if (sr && info) {
+        output = {
+          searchMatch: sr.name,
+          packageName: sr.packageName,
+          ...info,
+        };
+      }
+      break;
+    }
+    case "search-and-report": {
+      const sr = ctx.searchResult as AppInfo | undefined;
+      if (sr) {
+        output = {
+          searchMatch: sr.name,
+          packageName: sr.packageName,
+          appInfo: ctx.appInfo,
+          versions: ctx.versions,
+        };
+      }
+      break;
+    }
+    case "app-report":
+    case "info-and-versions": {
+      output = { appInfo: ctx.appInfo, versions: ctx.versions };
+      break;
+    }
+    case "download-latest":
+    case "verify-and-download": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const dl = ctx.downloadResult as DownloadResult | undefined;
+      if (info && dl) {
+        output = {
+          app: (info as any).name,
+          packageName: dl.packageName,
+          version: dl.version,
+          fileType: dl.fileType,
+          filePath: dl.filePath,
+          fileSize: dl.fileSize,
+          sha256: dl.sha256,
+          developer: (info as any).developer,
+          updateDate: (info as any).updateDate,
+        };
+      }
+      break;
+    }
+    case "download-version": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const dl = ctx.downloadResult as DownloadResult | undefined;
+      if (info && dl) {
+        output = {
+          app: (info as any).name,
+          packageName: dl.packageName,
+          requestedVersion: params.version,
+          actualVersion: dl.version,
+          filePath: dl.filePath,
+          fileSize: dl.fileSize,
+          sha256: dl.sha256,
+        };
+      }
+      break;
+    }
+    case "trending-and-info": {
+      output = ctx.trendingResult;
+      break;
+    }
   }
 
   return {

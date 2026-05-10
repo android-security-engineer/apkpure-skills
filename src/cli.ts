@@ -210,17 +210,19 @@ program
 program
   .command("workflow")
   .description("Run a built-in workflow (composable high-level operations)")
-  .argument("<name>", "Workflow name (search-and-download, download-by-name, app-report)")
+  .argument("<name>", "Workflow name (use 'apkpure workflows' to list)")
   .option("-q, --query <query>", "Search query (for search-based workflows)")
   .option("-p, --package <package>", "Package name (for package-based workflows)")
+  .option("-v, --version <version>", "Version string (for download-version workflow)")
   .option("-o, --output <dir>", "Download directory", DEFAULT_DOWNLOAD_DIR)
   .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
   .option("--proxy <proxy>", "HTTP proxy URL")
   .option("-j, --json", "Output raw JSON")
-  .action(async (name: string, opts: { query?: string; package?: string; output: string; mode: string; proxy?: string; json?: boolean }) => {
+  .action(async (name: string, opts: { query?: string; package?: string; version?: string; output: string; mode: string; proxy?: string; json?: boolean }) => {
     const params: Record<string, unknown> = {};
     if (opts.query) params.query = opts.query;
     if (opts.package) params.package = opts.package;
+    if (opts.version) params.version = opts.version;
 
     const result = await runWorkflow(name, params, {
       mode: opts.mode as "api" | "scraping" | "auto",
@@ -238,19 +240,45 @@ program
       process.exit(1);
     }
 
-    if (name === "search-and-download" || name === "download-by-name") {
+    if (name === "search-and-download" || name === "download-by-name" || name === "download-latest" || name === "verify-and-download") {
       const out = result.output as any;
       if (out) {
         console.log(`Workflow: ${name}`);
         console.log(`  App:        ${out.app}`);
         console.log(`  Package:    ${out.packageName}`);
-        console.log(`  Version:    ${out.version}`);
+        console.log(`  Version:    ${out.version ?? out.actualVersion}`);
         console.log(`  Type:       ${out.fileType?.toUpperCase()}`);
         console.log(`  File:       ${out.filePath}`);
         console.log(`  Size:       ${(out.fileSize / 1024 / 1024).toFixed(1)} MB`);
         console.log(`  SHA256:     ${out.sha256}`);
+        if (out.developer) console.log(`  Developer:  ${out.developer}`);
+        if (out.updateDate) console.log(`  Updated:    ${out.updateDate}`);
       }
-    } else if (name === "app-report") {
+    } else if (name === "download-version") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: download-version`);
+        console.log(`  App:        ${out.app}`);
+        console.log(`  Package:    ${out.packageName}`);
+        console.log(`  Requested:  ${out.requestedVersion}`);
+        console.log(`  Actual:     ${out.actualVersion}`);
+        console.log(`  File:       ${out.filePath}`);
+        console.log(`  Size:       ${(out.fileSize / 1024 / 1024).toFixed(1)} MB`);
+        console.log(`  SHA256:     ${out.sha256}`);
+      }
+    } else if (name === "search-and-info") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: search-and-info`);
+        console.log(`  App:        ${out.searchMatch}`);
+        console.log(`  Package:    ${out.packageName}`);
+        console.log(`  Version:    ${out.version}`);
+        if (out.developer) console.log(`  Developer:  ${out.developer}`);
+        if (out.category) console.log(`  Category:   ${out.category}`);
+        if (out.rating) console.log(`  Rating:     ${out.rating}`);
+        if (out.downloadUrl) console.log(`  Download:   ${out.fileType?.toUpperCase()} available`);
+      }
+    } else if (name === "search-and-report" || name === "app-report" || name === "info-and-versions") {
       const out = result.output as any;
       if (out?.appInfo) {
         const info = out.appInfo;
