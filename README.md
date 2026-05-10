@@ -114,6 +114,75 @@ List trending apps.
 npx apkpure trending
 ```
 
+## Workflows
+
+High-level operations that compose multiple skills into one step. Perfect for AI agents and automation.
+
+```bash
+# List available workflows
+npx apkpure workflows
+
+# Download by app name — just say the name, get the APK
+npx apkpure workflow download-by-name -q "Telegram"
+
+# Search and download in one step
+npx apkpure workflow search-and-download -q "WhatsApp" -o ~/Downloads
+
+# Full app report (info + all versions)
+npx apkpure workflow app-report -p org.telegram.messenger
+```
+
+### Built-in Workflows
+
+| Workflow | Input | Description |
+|----------|-------|-------------|
+| `download-by-name` | `-q <name>` | Search by name, download best match |
+| `search-and-download` | `-q <query>` | Search and download, return composed result |
+| `app-report` | `-p <package>` | Full info + all available versions |
+
+### Programmatic Workflows
+
+```typescript
+import { runWorkflow, listWorkflows } from "apkpure";
+
+// List available workflows
+const workflows = listWorkflows();
+
+// Run a workflow
+const result = await runWorkflow("download-by-name", {
+  query: "Telegram",
+}, { outputDir: "/tmp/apks" });
+
+if (result.success) {
+  const output = result.output as {
+    app: string;
+    packageName: string;
+    version: string;
+    filePath: string;
+    sha256: string;
+  };
+  console.log(`Downloaded ${output.app} to ${output.filePath}`);
+}
+```
+
+### AI Agent Workflows
+
+```typescript
+import { handleSkillRequest } from "apkpure";
+
+// One-step: download by name
+const result = await handleSkillRequest({
+  action: "workflow",
+  workflow: "download-by-name",
+  params: { query: "Telegram" },
+});
+
+// List workflows
+const workflows = await handleSkillRequest({
+  action: "list-workflows",
+});
+```
+
 ## Proxy Auto-Detection
 
 Works behind firewalls and GFW without manual configuration. Detection order:
