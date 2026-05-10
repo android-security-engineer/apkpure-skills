@@ -1,6 +1,6 @@
 ---
 name: apkpure
-description: Search, get info, list versions, and download Android APK files from APKPure. Use when the user asks to: (1) search for Android apps by name or keyword, (2) get detailed app information (version, developer, description, download URL), (3) list all available versions of an app, (4) download APK/XAPK files to local disk, (5) find trending apps. Supports auto-detection of local Clash proxy for GFW environments. Complete workflow: search → info → versions → download.
+description: Search, get info, list versions, and download Android APK files from APKPure. Use when the user asks to: (1) search for Android apps by name or keyword, (2) get detailed app information (version, developer, description, download URL), (3) list all available versions of an app, (4) download APK/XAPK files to local disk, (5) find trending apps, (6) run composable workflows for one-step operations. Supports auto-detection of local Clash proxy for GFW environments. Complete workflow: search → info → versions → download.
 ---
 
 # APKPure — Android APK Search & Download
@@ -76,13 +76,144 @@ npx apkpure trending
 
 Lists trending games in the last 24 hours.
 
+## Workflows (24 Built-in)
+
+High-level operations that compose multiple steps into one call. Perfect for AI agents and automation — no need to chain individual commands.
+
+```bash
+# List all available workflows
+npx apkpure workflows
+
+# Run a workflow
+npx apkpure workflow <name> [options]
+```
+
+### Search-based Workflows (input app name, no package name needed)
+
+| Workflow | Command | What it does |
+|----------|---------|-------------|
+| `download-by-name` | `-q "Telegram"` | Search by name → download best match |
+| `search-and-download` | `-q "WhatsApp"` | Search → download, return composed result |
+| `search-and-info` | `-q "Signal"` | Search → get detailed info |
+| `search-and-report` | `-q "Telegram"` | Search → info + all versions |
+| `search-intelligence` | `-q "WeChat"` | Search → deep intelligence report |
+| `quick-lookup` | `-q "VPN"` | Search → return key metadata only |
+| `explore-category` | `-q "games"` | Search → structured app listing |
+
+### Package-based Workflows (input package name)
+
+| Workflow | Command | What it does |
+|----------|---------|-------------|
+| `download-latest` | `-p org.telegram.messenger` | Download latest with metadata |
+| `download-version` | `-p <pkg> -v 10.5.1` | Download a specific version |
+| `download-oldest` | `-p com.whatsapp` | Download oldest version (vuln research) |
+| `verify-and-download` | `-p com.whatsapp` | Verify exists → download |
+| `download-and-verify` | `-p com.whatsapp` | Download → return SHA256 for verification |
+| `app-report` | `-p org.telegram.messenger` | Full info + all versions |
+| `info-and-versions` | `-p com.whatsapp` | Info + versions (alias for app-report) |
+| `validate-package` | `-p com.whatsapp` | Check if package exists on APKPure |
+
+### Intelligence & Analysis Workflows
+
+| Workflow | Command | What it does |
+|----------|---------|-------------|
+| `app-intelligence` | `-p com.whatsapp` | Deep report: info + versions + file types + range |
+| `version-audit` | `-p com.whatsapp` | Version comparison table |
+| `compare-versions` | `-p com.whatsapp` | Version jump analysis for diff targeting |
+| `check-update` | `-p <pkg> --current-version 2.25` | Check if update available |
+| `security-scan` | `-p com.whatsapp` | Download + version analysis for vuln research |
+
+### Batch & Discovery Workflows
+
+| Workflow | Command | What it does |
+|----------|---------|-------------|
+| `batch-download` | `--packages "com.a,com.b"` | Download multiple apps at once |
+| `batch-info` | `--packages "com.a,com.b"` | Get info for multiple apps |
+| `batch-validate` | `--packages "com.a,com.b"` | Validate multiple package names |
+| `trending-and-info` | — | List trending apps |
+
+### Workflow Examples
+
+```bash
+# One-step: download by name
+npx apkpure workflow download-by-name -q "Telegram"
+
+# Deep intelligence report for reverse engineering
+npx apkpure workflow app-intelligence -p org.telegram.messenger
+
+# Security scan: download + analyze versions
+npx apkpure workflow security-scan -p com.whatsapp
+
+# Download oldest version for vulnerability research
+npx apkpure workflow download-oldest -p com.whatsapp
+
+# Check if an update is available
+npx apkpure workflow check-update -p com.whatsapp --current-version 2.25.1
+
+# Validate multiple package names
+npx apkpure workflow batch-validate --packages "com.whatsapp,org.telegram.messenger,com.fake.app"
+
+# Explore apps in a category
+npx apkpure workflow explore-category -q "VPN"
+```
+
+### Programmatic Workflows
+
+```typescript
+import { runWorkflow, listWorkflows } from "apkpure";
+
+// List available workflows
+const workflows = listWorkflows();
+
+// Run a workflow
+const result = await runWorkflow("download-by-name", {
+  query: "Telegram",
+}, { outputDir: "/tmp/apks" });
+
+if (result.success) {
+  const output = result.output as {
+    app: string;
+    packageName: string;
+    version: string;
+    filePath: string;
+    sha256: string;
+  };
+  console.log(`Downloaded ${output.app} to ${output.filePath}`);
+}
+```
+
+### AI Agent Workflows
+
+```typescript
+import { handleSkillRequest } from "apkpure";
+
+// One-step: download by name
+const result = await handleSkillRequest({
+  action: "workflow",
+  workflow: "download-by-name",
+  params: { query: "Telegram" },
+});
+
+// Security scan
+const scan = await handleSkillRequest({
+  action: "workflow",
+  workflow: "security-scan",
+  params: { package: "com.whatsapp" },
+});
+
+// List workflows
+const workflows = await handleSkillRequest({
+  action: "list-workflows",
+});
+```
+
 ## Common Options
 
 | Flag | Description |
 |------|-------------|
 | `-p, --proxy <url>` | Override auto-detected proxy |
 | `-m, --mode <mode>` | `api` (fast), `scraping` (reliable), `auto` (default) |
-| `-o, --output <dir>` | Download output directory (default: `./apks`) |
+| `-o, --output <dir>` | Download output directory (default: `~/.apkpure/downloads/`) |
 | `-v, --version <ver>` | Download specific version |
 | `-j, --json` | Output raw JSON instead of formatted text |
 
@@ -114,6 +245,13 @@ npx apkpure versions org.thoughtcrime.securesms
 # 4. Download
 npx apkpure download org.thoughtcrime.securesms -o ./apks
 # → Saved: ./apks/org.thoughtcrime.securesms-7.0.0.apk (SHA256: abc...)
+```
+
+Or use a workflow to do it all in one step:
+
+```bash
+npx apkpure workflow download-by-name -q "Signal"
+# → Downloads Signal and returns file path + SHA256
 ```
 
 ## Troubleshooting

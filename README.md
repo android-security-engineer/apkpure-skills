@@ -149,6 +149,15 @@ npx apkpure workflow app-report -p org.telegram.messenger
 # Deep intelligence report for reverse engineering
 npx apkpure workflow app-intelligence -p org.telegram.messenger
 
+# Security scan: download + version analysis
+npx apkpure workflow security-scan -p com.whatsapp
+
+# Download with SHA256 integrity verification
+npx apkpure workflow download-and-verify -p com.whatsapp
+
+# Version jump analysis for diff targeting
+npx apkpure workflow compare-versions -p com.whatsapp
+
 # Version audit — all versions with codes and types
 npx apkpure workflow version-audit -p com.whatsapp
 
@@ -161,11 +170,23 @@ npx apkpure workflow quick-lookup -q "Signal"
 # Check if an update is available
 npx apkpure workflow check-update -p com.whatsapp --current-version 2.25.1
 
+# Explore apps in a category
+npx apkpure workflow explore-category -q "VPN"
+
+# Validate a package name
+npx apkpure workflow validate-package -p com.whatsapp
+
+# Batch validate multiple packages
+npx apkpure workflow batch-validate --packages "com.whatsapp,org.telegram.messenger"
+
+# Batch info for multiple apps (no download)
+npx apkpure workflow batch-info --packages "com.whatsapp,org.telegram.messenger"
+
 # Batch download multiple apps
 npx apkpure workflow batch-download --packages "com.whatsapp,org.telegram.messenger"
 ```
 
-### Built-in Workflows (17)
+### Built-in Workflows (24)
 
 #### Search-based (input app name, no package name needed)
 
@@ -177,6 +198,7 @@ npx apkpure workflow batch-download --packages "com.whatsapp,org.telegram.messen
 | `search-and-report` | `-q <query>` | Search + info + versions without package name |
 | `search-intelligence` | `-q <query>` | Search + deep intelligence report |
 | `quick-lookup` | `-q <query>` | Search + return key metadata only |
+| `explore-category` | `-q <query>` | Search + structured app listing |
 
 #### Package-based (input package name)
 
@@ -187,7 +209,9 @@ npx apkpure workflow batch-download --packages "com.whatsapp,org.telegram.messen
 | `download-version` | `-p <pkg> -v <ver>` | Download a specific version |
 | `download-oldest` | `-p <package>` | Download oldest version for vuln research |
 | `verify-and-download` | `-p <package>` | Verify app exists before downloading |
+| `download-and-verify` | `-p <package>` | Download + return SHA256 for integrity check |
 | `info-and-versions` | `-p <package>` | Get info + all versions |
+| `validate-package` | `-p <package>` | Check if package exists on APKPure |
 
 #### Intelligence & Analysis
 
@@ -195,13 +219,17 @@ npx apkpure workflow batch-download --packages "com.whatsapp,org.telegram.messen
 |----------|-------|-------------|
 | `app-intelligence` | `-p <package>` | Deep report: info + versions + file types + range |
 | `version-audit` | `-p <package>` | Version comparison table for diff analysis |
+| `compare-versions` | `-p <package>` | Version jump analysis for diff targeting |
 | `check-update` | `-p <pkg> --current-version` | Check if update available |
+| `security-scan` | `-p <package>` | Download + version analysis for vuln research |
 
 #### Batch & Discovery
 
 | Workflow | Input | Description |
 |----------|-------|-------------|
 | `batch-download` | `--packages <csv>` | Download multiple apps at once |
+| `batch-info` | `--packages <csv>` | Get info for multiple apps |
+| `batch-validate` | `--packages <csv>` | Validate multiple package names |
 | `trending-and-info` | — | List trending apps |
 
 ### Programmatic Workflows
