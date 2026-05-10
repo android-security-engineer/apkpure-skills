@@ -1,0 +1,22 @@
+{
+  "name": "apkpure",
+  "version": "1.0.0",
+  "description": "Search, get info, list versions, and download Android APK files from APKPure — 24 built-in workflows for AI agents and automation",
+  "author": {
+    "name": "android-security-engineer",
+    "url": "https://github.com/android-security-engineer"
+  },
+  "homepage": "https://github.com/android-security-engineer/apkpure-skills",
+  "repository": "https://github.com/android-security-engineer/apkpure-skills",
+  "license": "MIT",
+  "keywords": [
+    "apk",
+    "android",
+    "apkpure",
+    "download",
+    "xapk",
+    "reverse-engineering",
+    "security",
+    "mobile"
+  ]
+}

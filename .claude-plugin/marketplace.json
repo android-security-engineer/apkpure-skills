@@ -1,0 +1,32 @@
+{
+  "name": "apkpure-skills",
+  "description": "Android APK search, download, and intelligence — 24 built-in workflows for reverse engineering and app analysis",
+  "owner": {
+    "name": "android-security-engineer",
+    "url": "https://github.com/android-security-engineer"
+  },
+  "plugins": [
+    {
+      "name": "apkpure",
+      "version": "1.0.0",
+      "description": "Search, get info, list versions, and download Android APK files from APKPure. 24 built-in workflows for AI agents: search-and-download, app-intelligence, security-scan, batch-download, version-audit, and more. Auto proxy detection for GFW environments.",
+      "source": "./",
+      "author": {
+        "name": "android-security-engineer",
+        "url": "https://github.com/android-security-engineer"
+      },
+      "keywords": [
+        "apk",
+        "android",
+        "apkpure",
+        "download",
+        "xapk",
+        "reverse-engineering",
+        "security",
+        "mobile",
+        "workflow"
+      ],
+      "category": "development"
+    }
+  ]
+}
