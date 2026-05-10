@@ -128,6 +128,21 @@ npx apkpure workflow download-by-name -q "Telegram"
 # Search and download in one step
 npx apkpure workflow search-and-download -q "WhatsApp" -o ~/Downloads
 
+# Search and get info in one step
+npx apkpure workflow search-and-info -q "Signal"
+
+# Full report by name (no package name needed)
+npx apkpure workflow search-and-report -q "Telegram"
+
+# Download latest with full metadata
+npx apkpure workflow download-latest -p org.telegram.messenger
+
+# Download a specific version
+npx apkpure workflow download-version -p org.telegram.messenger -v 10.5.1
+
+# Verify app exists, then download
+npx apkpure workflow verify-and-download -p com.whatsapp
+
 # Full app report (info + all versions)
 npx apkpure workflow app-report -p org.telegram.messenger
 ```
@@ -138,7 +153,14 @@ npx apkpure workflow app-report -p org.telegram.messenger
 |----------|-------|-------------|
 | `download-by-name` | `-q <name>` | Search by name, download best match |
 | `search-and-download` | `-q <query>` | Search and download, return composed result |
+| `search-and-info` | `-q <query>` | Search and get detailed info in one call |
+| `search-and-report` | `-q <query>` | Search + info + versions without package name |
 | `app-report` | `-p <package>` | Full info + all available versions |
+| `download-latest` | `-p <package>` | Download latest with app metadata in result |
+| `download-version` | `-p <pkg> -v <ver>` | Download a specific version |
+| `verify-and-download` | `-p <package>` | Verify app exists before downloading |
+| `info-and-versions` | `-p <package>` | Get info + all versions (alias for app-report) |
+| `trending-and-info` | — | List trending apps |
 
 ### Programmatic Workflows
 
