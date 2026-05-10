@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { ApkPure } from "./core/apkpure.js";
+import { DEFAULT_DOWNLOAD_DIR } from "./config.js";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -88,7 +89,7 @@ program
   .command("download")
   .description("Download an APK/XAPK file")
   .argument("<package>", "Android package name")
-  .option("-o, --output <dir>", "Output directory", "./apks")
+  .option("-o, --output <dir>", "Output directory", DEFAULT_DOWNLOAD_DIR)
   .option("-v, --version <version>", "Specific version to download")
   .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")

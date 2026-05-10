@@ -1,5 +1,9 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { SdkConfig } from "./types/index.js";
 import type { MobileConfig } from "./types/api.js";
+
+export const DEFAULT_DOWNLOAD_DIR = join(homedir(), ".apkpure", "downloads");
 
 export const DEFAULT_CONFIG: Required<SdkConfig> = {
   mode: "auto",

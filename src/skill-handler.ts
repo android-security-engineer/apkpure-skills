@@ -1,4 +1,5 @@
 import { ApkPure } from "./core/apkpure.js";
+import { DEFAULT_DOWNLOAD_DIR } from "./config.js";
 import type { SdkConfig } from "./types/index.js";
 
 export interface SkillRequest {
@@ -42,7 +43,7 @@ export async function handleSkillRequest(
       case "download": {
         if (!req.package)
           throw new Error("package is required for download");
-        if (!req.outputDir) req.outputDir = "./apks";
+        if (!req.outputDir) req.outputDir = DEFAULT_DOWNLOAD_DIR;
         const result = await sdk.download(req.package, {
           outputDir: req.outputDir,
           version: req.version,
