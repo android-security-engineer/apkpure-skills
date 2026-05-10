@@ -42,13 +42,13 @@ export class ApkPure {
     await this._initPromise;
   }
 
-  async search(query: string): Promise<SearchResult> {
+  async search(query: string, page = 1): Promise<SearchResult> {
     await this.ensureReady();
     if (this.config.mode === "scraping") {
       return this.scraper.search(query);
     }
     try {
-      const resp = await this.mobile.search(query);
+      const resp = await this.mobile.search(query, page);
       const apps: AppInfo[] = [];
       const seen = new Set<string>();
       for (const block of resp.data?.data ?? []) {
@@ -68,7 +68,7 @@ export class ApkPure {
           });
         }
       }
-      return { apps };
+      return { apps, page };
     } catch {
       if (this.config.mode === "auto") {
         return this.scraper.search(query);

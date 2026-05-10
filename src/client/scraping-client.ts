@@ -98,6 +98,10 @@ export class ScrapingClient {
     const dlBtn = banner.find("a.download_apk_news");
     const versionCodeStr = dlBtn.attr("data-dt-version_code");
     const downloadHref = dlBtn.attr("href") ?? "";
+    const fileTypeStr = dlBtn.attr("data-dt-filetype") ?? "apk";
+    const fileType = (["apk", "xapk", "apks"].includes(fileTypeStr.toLowerCase())
+      ? fileTypeStr.toLowerCase()
+      : "apk") as "apk" | "xapk" | "apks";
 
     const sdkInfo = banner.find("p.details_sdk");
     const latestVersion = sdkInfo.contents().eq(1).text().trim() || undefined;
@@ -116,7 +120,7 @@ export class ScrapingClient {
       rating,
       updateDate: date,
       downloadUrl: downloadHref,
-      fileType: "apk",
+      fileType,
       olderVersions: versions,
     };
   }

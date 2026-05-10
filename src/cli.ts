@@ -17,10 +17,12 @@ program
   .argument("<query>", "Search query")
   .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
+  .option("--page <num>", "Page number (default: 1)", "1")
   .option("-j, --json", "Output raw JSON instead of table")
-  .action(async (query: string, opts: { mode: string; proxy?: string; json?: boolean }) => {
+  .action(async (query: string, opts: { mode: string; proxy?: string; page?: string; json?: boolean }) => {
     const client = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
-    const result = await client.search(query);
+    const page = parseInt(opts.page ?? "1", 10);
+    const result = await client.search(query, page);
 
     if (opts.json) {
       console.log(JSON.stringify(result, null, 2));
