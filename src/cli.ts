@@ -343,6 +343,100 @@ program
           }
         }
       }
+    } else if (name === "security-scan") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: security-scan`);
+        console.log(`  App:          ${out.app}`);
+        console.log(`  Package:      ${out.packageName}`);
+        console.log(`  Version:      ${out.currentVersion}`);
+        console.log(`  Developer:    ${out.developer ?? "N/A"}`);
+        if (out.versionCount !== undefined) console.log(`  Versions:     ${out.versionCount} (range: ${out.oldestVersion} → ${out.latestVersion})`);
+        if (out.fileTypes?.length) console.log(`  File Types:   ${out.fileTypes.join(", ").toUpperCase()}`);
+        if (out.downloadedFile) {
+          console.log(`  Downloaded:   ${out.downloadedFile.filePath}`);
+          console.log(`  Size:         ${(out.downloadedFile.fileSize / 1024 / 1024).toFixed(1)} MB`);
+          console.log(`  SHA256:       ${out.downloadedFile.sha256}`);
+        }
+      }
+    } else if (name === "download-and-verify") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: download-and-verify`);
+        console.log(`  Package:      ${out.packageName}`);
+        console.log(`  Version:      ${out.version}`);
+        console.log(`  Type:         ${out.fileType?.toUpperCase()}`);
+        console.log(`  File:         ${out.filePath}`);
+        console.log(`  Size:         ${(out.fileSize / 1024 / 1024).toFixed(1)} MB`);
+        console.log(`  SHA256:       ${out.sha256}`);
+        console.log(`  Verified:     ${out.verified ? "Yes" : "No"}`);
+      }
+    } else if (name === "compare-versions") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: compare-versions`);
+        console.log(`  Package:      ${out.packageName}`);
+        console.log(`  Current:      ${out.currentVersion}`);
+        console.log(`  Range:        ${out.oldestVersion} → ${out.latestVersion}`);
+        console.log(`  Total:        ${out.versionCount} versions`);
+        if (out.versionJumps?.length) {
+          console.log();
+          console.log(`  Top version jumps (by code delta):`);
+          const top = [...out.versionJumps].sort((a: any, b: any) => b.codeDelta - a.codeDelta).slice(0, 5);
+          for (const j of top) {
+            console.log(`    ${j.from} → ${j.to}  (Δ${j.codeDelta})`);
+          }
+        }
+      }
+    } else if (name === "explore-category") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: explore-category`);
+        console.log(`  Query:        ${out.query}`);
+        console.log(`  Results:      ${out.totalResults} apps`);
+        if (out.apps?.length) {
+          console.log();
+          for (const a of out.apps) {
+            console.log(`  ${a.name}`);
+            console.log(`    Package: ${a.packageName}  Version: ${a.version}`);
+          }
+        }
+      }
+    } else if (name === "batch-info") {
+      const out = result.output as any;
+      if (out?.results) {
+        console.log(`Workflow: batch-info`);
+        for (const r of out.results) {
+          if (r.info) {
+            console.log(`  ${r.package}  ${r.info.name}  v${r.info.version}  ${r.info.developer ?? ""}`);
+          } else {
+            console.log(`  ${r.package}  NOT FOUND: ${r.error}`);
+          }
+        }
+      }
+    } else if (name === "validate-package") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: validate-package`);
+        console.log(`  Package:      ${out.packageName}`);
+        console.log(`  Valid:        ${out.valid ? "Yes" : "No"}`);
+        if (out.valid) {
+          console.log(`  Name:         ${out.name}`);
+          console.log(`  Version:      ${out.version}`);
+          console.log(`  Developer:    ${out.developer ?? "N/A"}`);
+        }
+      }
+    } else if (name === "batch-validate") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: batch-validate`);
+        console.log(`  Total: ${out.total}  Valid: ${out.valid}  Invalid: ${out.invalid}`);
+        if (out.results?.length) {
+          for (const r of out.results) {
+            console.log(`  ${r.package}  ${r.valid ? "VALID" : "INVALID"}  ${r.name ?? ""}`);
+          }
+        }
+      }
     } else {
       console.log(JSON.stringify(result.output, null, 2));
     }

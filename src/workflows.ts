@@ -196,6 +196,80 @@ export const BUILT_IN_WORKFLOWS: Record<string, WorkflowDefinition> = {
       { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
     ],
   },
+
+  // ---- Security & RE workflows ----
+
+  "security-scan": {
+    name: "security-scan",
+    description:
+      "Security-oriented scan: download latest + get all versions for vulnerability analysis",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+      { action: "download", input: { package: "{{package}}" }, outputKey: "downloadResult" },
+    ],
+  },
+
+  "download-and-verify": {
+    name: "download-and-verify",
+    description:
+      "Download an APK and return its SHA256 hash with file metadata for integrity verification",
+    steps: [
+      { action: "download", input: { package: "{{package}}", version: "{{version}}" }, outputKey: "downloadResult" },
+    ],
+  },
+
+  // ---- Comparison workflows ----
+
+  "compare-versions": {
+    name: "compare-versions",
+    description:
+      "Get version history with version codes to identify major/minor/patch jumps for diff targeting",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+    ],
+  },
+
+  // ---- Discovery & exploration workflows ----
+
+  "explore-category": {
+    name: "explore-category",
+    description:
+      "Search for apps in a specific category and return structured info for the top results",
+    steps: [
+      { action: "search", input: { query: "{{query}}" }, outputKey: "searchData" },
+    ],
+  },
+
+  "batch-info": {
+    name: "batch-info",
+    description:
+      "Get detailed info for multiple apps by package names (comma-separated) without downloading",
+    steps: [
+      { action: "batch-info", input: { packages: "{{packages}}" }, outputKey: "batchInfo" },
+    ],
+  },
+
+  // ---- Package validation workflows ----
+
+  "validate-package": {
+    name: "validate-package",
+    description:
+      "Check if a package name is valid and the app exists on APKPure — returns app name and basic metadata",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+    ],
+  },
+
+  "batch-validate": {
+    name: "batch-validate",
+    description:
+      "Validate multiple package names at once — returns which exist and which don't",
+    steps: [
+      { action: "batch-info", input: { packages: "{{packages}}" }, outputKey: "batchInfo" },
+    ],
+  },
 };
 
 function resolveTemplate(
@@ -562,6 +636,117 @@ export async function runWorkflow(
         latestAvailable,
         updateAvailable: latestAvailable !== undefined && latestAvailable !== (currentVersion ?? (info as any)?.version),
         versionCount: ctx.versionCount,
+      };
+      break;
+    }
+    case "security-scan": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const versions = ctx.versions as { version: string; versionCode: number; type: string }[] | undefined;
+      const dl = ctx.downloadResult as DownloadResult | undefined;
+      output = {
+        packageName: (info as any)?.packageName,
+        app: (info as any)?.name,
+        currentVersion: (info as any)?.version,
+        developer: (info as any)?.developer,
+        versionCount: ctx.versionCount,
+        latestVersion: ctx.latestVersion,
+        oldestVersion: ctx.oldestVersion,
+        fileTypes: versions ? [...new Set(versions.map((v) => v.type))] : [],
+        downloadedFile: dl ? {
+          filePath: dl.filePath,
+          fileSize: dl.fileSize,
+          fileType: dl.fileType,
+          sha256: dl.sha256,
+        } : undefined,
+      };
+      break;
+    }
+    case "download-and-verify": {
+      const dl = ctx.downloadResult as DownloadResult | undefined;
+      if (dl) {
+        output = {
+          packageName: dl.packageName,
+          version: dl.version,
+          fileType: dl.fileType,
+          filePath: dl.filePath,
+          fileSize: dl.fileSize,
+          sha256: dl.sha256,
+          verified: true,
+        };
+      }
+      break;
+    }
+    case "compare-versions": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const versions = ctx.versions as { version: string; versionCode: number; type: string }[] | undefined;
+      const versionJumps: { from: string; to: string; codeDelta: number }[] = [];
+      if (versions && versions.length > 1) {
+        for (let i = 0; i < versions.length - 1; i++) {
+          versionJumps.push({
+            from: versions[i + 1].version,
+            to: versions[i].version,
+            codeDelta: versions[i].versionCode - versions[i + 1].versionCode,
+          });
+        }
+      }
+      output = {
+        packageName: (info as any)?.packageName,
+        currentVersion: (info as any)?.version,
+        versionCount: ctx.versionCount,
+        latestVersion: ctx.latestVersion,
+        oldestVersion: ctx.oldestVersion,
+        versionJumps,
+        versions: versions?.map((v) => ({
+          version: v.version,
+          versionCode: v.versionCode,
+          type: v.type,
+        })),
+      };
+      break;
+    }
+    case "explore-category": {
+      const searchData = ctx.searchData as { apps: AppInfo[] } | undefined;
+      const apps = searchData?.apps ?? [];
+      output = {
+        query: params.query,
+        totalResults: apps.length,
+        apps: apps.map((a: AppInfo) => ({
+          name: a.name,
+          packageName: a.packageName,
+          version: a.version,
+          developer: a.developer,
+          category: a.category,
+          rating: a.rating,
+        })),
+      };
+      break;
+    }
+    case "batch-info": {
+      output = { results: ctx.batchInfo };
+      break;
+    }
+    case "validate-package": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      output = {
+        packageName: (info as any)?.packageName,
+        valid: !!info,
+        name: (info as any)?.name,
+        version: (info as any)?.version,
+        developer: (info as any)?.developer,
+      };
+      break;
+    }
+    case "batch-validate": {
+      const batchInfo = ctx.batchInfo as { package: string; info?: Record<string, unknown>; error?: string }[] | undefined;
+      output = {
+        results: batchInfo?.map((r) => ({
+          package: r.package,
+          valid: !!r.info,
+          name: (r.info as any)?.name,
+        })),
+        total: batchInfo?.length ?? 0,
+        valid: batchInfo?.filter((r) => r.info).length ?? 0,
+        invalid: batchInfo?.filter((r) => !r.info).length ?? 0,
       };
       break;
     }

@@ -77,9 +77,9 @@ describe("workflows", () => {
   });
 
   describe("listWorkflows", () => {
-    test("returns at least 17 built-in workflows", () => {
+    test("returns at least 24 built-in workflows", () => {
       const workflows = listWorkflows();
-      expect(workflows.length).toBeGreaterThanOrEqual(17);
+      expect(workflows.length).toBeGreaterThanOrEqual(24);
     });
 
     test("each workflow has name, description, and steps", () => {
@@ -110,6 +110,13 @@ describe("workflows", () => {
         "download-oldest",
         "quick-lookup",
         "check-update",
+        "security-scan",
+        "download-and-verify",
+        "compare-versions",
+        "explore-category",
+        "batch-info",
+        "validate-package",
+        "batch-validate",
       ];
       for (const name of expected) {
         expect(names).toContain(name);
@@ -300,6 +307,82 @@ describe("workflows", () => {
       expect(result.success).toBe(true);
       const output = result.output as any;
       expect(output.updateAvailable).toBe(false);
+    });
+
+    // ---- Security & RE workflows ----
+
+    test("security-scan — downloads and returns security report", async () => {
+      const result = await runWorkflow("security-scan", { package: "com.test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.packageName).toBe("com.test");
+      expect(output.versionCount).toBe(2);
+      expect(output.downloadedFile).toBeDefined();
+      expect(output.downloadedFile.sha256).toBe("abc");
+    });
+
+    test("download-and-verify — returns SHA256 verification", async () => {
+      const result = await runWorkflow("download-and-verify", { package: "com.test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.sha256).toBe("abc");
+      expect(output.verified).toBe(true);
+    });
+
+    // ---- Comparison workflows ----
+
+    test("compare-versions — returns version jumps", async () => {
+      const result = await runWorkflow("compare-versions", { package: "com.test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.versionJumps).toBeDefined();
+      expect(output.versionJumps.length).toBeGreaterThan(0);
+      expect(output.versionJumps[0].codeDelta).toBe(1);
+    });
+
+    // ---- Discovery workflows ----
+
+    test("explore-category — returns structured search results", async () => {
+      const result = await runWorkflow("explore-category", { query: "games" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.totalResults).toBeGreaterThan(0);
+      expect(output.apps).toBeDefined();
+    });
+
+    test("batch-info — gets info for multiple apps", async () => {
+      const result = await runWorkflow("batch-info", { packages: "com.test,com.other" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.results).toBeDefined();
+    });
+
+    // ---- Validation workflows ----
+
+    test("validate-package — returns valid for existing app", async () => {
+      const result = await runWorkflow("validate-package", { package: "com.test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.valid).toBe(true);
+      expect(output.name).toBe("TestApp");
+    });
+
+    test("validate-package — returns invalid for non-existent app", async () => {
+      mockGetInfo.mockResolvedValueOnce(null);
+      const result = await runWorkflow("validate-package", { package: "com.nonexistent" });
+      expect(result.success).toBe(false);
+    });
+
+    test("batch-validate — validates multiple packages", async () => {
+      mockGetInfo
+        .mockResolvedValueOnce({ packageName: "com.a", name: "A", version: "1.0" })
+        .mockResolvedValueOnce(null);
+      const result = await runWorkflow("batch-validate", { packages: "com.a,com.b" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.total).toBe(2);
+      expect(output.valid).toBe(1);
+      expect(output.invalid).toBe(1);
     });
 
     // ---- General error handling ----
