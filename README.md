@@ -145,9 +145,29 @@ npx apkpure workflow verify-and-download -p com.whatsapp
 
 # Full app report (info + all versions)
 npx apkpure workflow app-report -p org.telegram.messenger
+
+# Deep intelligence report for reverse engineering
+npx apkpure workflow app-intelligence -p org.telegram.messenger
+
+# Version audit — all versions with codes and types
+npx apkpure workflow version-audit -p com.whatsapp
+
+# Download oldest version for vulnerability research
+npx apkpure workflow download-oldest -p com.whatsapp
+
+# Quick lookup — just the key metadata
+npx apkpure workflow quick-lookup -q "Signal"
+
+# Check if an update is available
+npx apkpure workflow check-update -p com.whatsapp --current-version 2.25.1
+
+# Batch download multiple apps
+npx apkpure workflow batch-download --packages "com.whatsapp,org.telegram.messenger"
 ```
 
-### Built-in Workflows
+### Built-in Workflows (17)
+
+#### Search-based (input app name, no package name needed)
 
 | Workflow | Input | Description |
 |----------|-------|-------------|
@@ -155,11 +175,33 @@ npx apkpure workflow app-report -p org.telegram.messenger
 | `search-and-download` | `-q <query>` | Search and download, return composed result |
 | `search-and-info` | `-q <query>` | Search and get detailed info in one call |
 | `search-and-report` | `-q <query>` | Search + info + versions without package name |
+| `search-intelligence` | `-q <query>` | Search + deep intelligence report |
+| `quick-lookup` | `-q <query>` | Search + return key metadata only |
+
+#### Package-based (input package name)
+
+| Workflow | Input | Description |
+|----------|-------|-------------|
 | `app-report` | `-p <package>` | Full info + all available versions |
 | `download-latest` | `-p <package>` | Download latest with app metadata in result |
 | `download-version` | `-p <pkg> -v <ver>` | Download a specific version |
+| `download-oldest` | `-p <package>` | Download oldest version for vuln research |
 | `verify-and-download` | `-p <package>` | Verify app exists before downloading |
-| `info-and-versions` | `-p <package>` | Get info + all versions (alias for app-report) |
+| `info-and-versions` | `-p <package>` | Get info + all versions |
+
+#### Intelligence & Analysis
+
+| Workflow | Input | Description |
+|----------|-------|-------------|
+| `app-intelligence` | `-p <package>` | Deep report: info + versions + file types + range |
+| `version-audit` | `-p <package>` | Version comparison table for diff analysis |
+| `check-update` | `-p <pkg> --current-version` | Check if update available |
+
+#### Batch & Discovery
+
+| Workflow | Input | Description |
+|----------|-------|-------------|
+| `batch-download` | `--packages <csv>` | Download multiple apps at once |
 | `trending-and-info` | — | List trending apps |
 
 ### Programmatic Workflows
