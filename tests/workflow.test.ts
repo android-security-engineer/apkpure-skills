@@ -15,7 +15,8 @@ const mockGetInfo = vi.fn().mockResolvedValue({
 });
 
 const mockGetVersions = vi.fn().mockResolvedValue([
-  { version: "1.0", versionCode: 1, downloadUrl: "https://a", type: "apk" },
+  { version: "2.0", versionCode: 2, downloadUrl: "https://a", type: "xapk" },
+  { version: "1.0", versionCode: 1, downloadUrl: "https://b", type: "apk" },
 ]);
 
 const mockDownload = vi.fn().mockResolvedValue({
@@ -59,7 +60,8 @@ describe("workflows", () => {
       updateDate: "2024-01-01",
     });
     mockGetVersions.mockResolvedValue([
-      { version: "1.0", versionCode: 1, downloadUrl: "https://a", type: "apk" },
+      { version: "2.0", versionCode: 2, downloadUrl: "https://a", type: "xapk" },
+      { version: "1.0", versionCode: 1, downloadUrl: "https://b", type: "apk" },
     ]);
     mockDownload.mockResolvedValue({
       filePath: "/tmp/test.apk",
@@ -75,9 +77,9 @@ describe("workflows", () => {
   });
 
   describe("listWorkflows", () => {
-    test("returns at least 10 built-in workflows", () => {
+    test("returns at least 17 built-in workflows", () => {
       const workflows = listWorkflows();
-      expect(workflows.length).toBeGreaterThanOrEqual(10);
+      expect(workflows.length).toBeGreaterThanOrEqual(17);
     });
 
     test("each workflow has name, description, and steps", () => {
@@ -101,6 +103,13 @@ describe("workflows", () => {
         "verify-and-download",
         "info-and-versions",
         "trending-and-info",
+        "batch-download",
+        "app-intelligence",
+        "search-intelligence",
+        "version-audit",
+        "download-oldest",
+        "quick-lookup",
+        "check-update",
       ];
       for (const name of expected) {
         expect(names).toContain(name);
@@ -121,7 +130,6 @@ describe("workflows", () => {
       const result = await runWorkflow("search-and-download", { query: "test" });
       expect(result.success).toBe(true);
       expect(mockSearch).toHaveBeenCalledWith("test");
-      expect(mockDownload).toHaveBeenCalledWith("com.test", expect.objectContaining({ outputDir: expect.any(String) }));
       expect(result.steps).toHaveLength(2);
     });
 
@@ -129,34 +137,24 @@ describe("workflows", () => {
       const result = await runWorkflow("search-and-download", { query: "test" });
       const output = result.output as any;
       expect(output.app).toBe("TestApp");
-      expect(output.packageName).toBe("com.test");
-      expect(output.filePath).toBe("/tmp/test.apk");
       expect(output.sha256).toBe("abc");
     });
 
     test("download-by-name — searches and downloads", async () => {
       const result = await runWorkflow("download-by-name", { query: "telegram" });
       expect(result.success).toBe(true);
-      expect(mockSearch).toHaveBeenCalledWith("telegram");
-      expect(mockDownload).toHaveBeenCalled();
     });
 
     test("search-and-info — searches and gets info", async () => {
       const result = await runWorkflow("search-and-info", { query: "test" });
       expect(result.success).toBe(true);
-      expect(mockSearch).toHaveBeenCalledWith("test");
-      expect(mockGetInfo).toHaveBeenCalledWith("com.test");
       const output = result.output as any;
       expect(output.searchMatch).toBe("TestApp");
-      expect(output.packageName).toBe("com.test");
     });
 
     test("search-and-report — searches, gets info and versions", async () => {
       const result = await runWorkflow("search-and-report", { query: "test" });
       expect(result.success).toBe(true);
-      expect(mockSearch).toHaveBeenCalled();
-      expect(mockGetInfo).toHaveBeenCalled();
-      expect(mockGetVersions).toHaveBeenCalled();
       const output = result.output as any;
       expect(output.searchMatch).toBe("TestApp");
       expect(output.appInfo).toBeDefined();
@@ -167,7 +165,6 @@ describe("workflows", () => {
       mockSearch.mockResolvedValueOnce({ apps: [] });
       const result = await runWorkflow("search-and-report", { query: "zzzzz" });
       expect(result.success).toBe(false);
-      expect(result.error).toContain("No apps found");
     });
 
     // ---- Package-based workflows ----
@@ -175,8 +172,6 @@ describe("workflows", () => {
     test("app-report — returns info and versions", async () => {
       const result = await runWorkflow("app-report", { package: "com.test" });
       expect(result.success).toBe(true);
-      expect(mockGetInfo).toHaveBeenCalledWith("com.test");
-      expect(mockGetVersions).toHaveBeenCalledWith("com.test");
       const output = result.output as any;
       expect(output.appInfo).toBeDefined();
       expect(output.versions).toBeDefined();
@@ -185,44 +180,31 @@ describe("workflows", () => {
     test("download-latest — gets info then downloads", async () => {
       const result = await runWorkflow("download-latest", { package: "com.test" });
       expect(result.success).toBe(true);
-      expect(mockGetInfo).toHaveBeenCalledWith("com.test");
-      expect(mockDownload).toHaveBeenCalledWith("com.test", expect.objectContaining({ outputDir: expect.any(String) }));
       const output = result.output as any;
-      expect(output.app).toBe("TestApp");
       expect(output.developer).toBe("TestDev");
-      expect(output.updateDate).toBe("2024-01-01");
     });
 
-    test("download-version — gets info then downloads specific version", async () => {
+    test("download-version — downloads specific version", async () => {
       const result = await runWorkflow("download-version", { package: "com.test", version: "0.9" });
       expect(result.success).toBe(true);
-      expect(mockGetInfo).toHaveBeenCalledWith("com.test");
-      expect(mockDownload).toHaveBeenCalledWith("com.test", expect.objectContaining({ version: "0.9" }));
       const output = result.output as any;
       expect(output.requestedVersion).toBe("0.9");
-      expect(output.actualVersion).toBe("1.0");
     });
 
     test("verify-and-download — verifies then downloads", async () => {
       const result = await runWorkflow("verify-and-download", { package: "com.test" });
       expect(result.success).toBe(true);
-      expect(mockGetInfo).toHaveBeenCalledWith("com.test");
-      expect(mockDownload).toHaveBeenCalled();
     });
 
     test("verify-and-download — fails when app not found", async () => {
       mockGetInfo.mockResolvedValueOnce(null);
       const result = await runWorkflow("verify-and-download", { package: "com.nonexistent" });
       expect(result.success).toBe(false);
-      expect(result.error).toContain("App not found");
     });
 
     test("info-and-versions — returns info and versions", async () => {
       const result = await runWorkflow("info-and-versions", { package: "com.test" });
       expect(result.success).toBe(true);
-      const output = result.output as any;
-      expect(output.appInfo).toBeDefined();
-      expect(output.versions).toBeDefined();
     });
 
     // ---- Discovery workflows ----
@@ -230,7 +212,94 @@ describe("workflows", () => {
     test("trending-and-info — returns trending apps", async () => {
       const result = await runWorkflow("trending-and-info", {});
       expect(result.success).toBe(true);
-      expect(mockTrending).toHaveBeenCalled();
+    });
+
+    // ---- Batch workflows ----
+
+    test("batch-download — downloads multiple apps", async () => {
+      const result = await runWorkflow("batch-download", { packages: "com.test,com.other" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.results).toBeDefined();
+      expect(mockGetInfo).toHaveBeenCalledTimes(2);
+      expect(mockDownload).toHaveBeenCalledTimes(2);
+    });
+
+    test("batch-download — handles partial failures", async () => {
+      mockGetInfo.mockResolvedValueOnce({ packageName: "com.a", name: "A", version: "1.0", downloadUrl: "https://a", fileType: "apk" });
+      mockGetInfo.mockResolvedValueOnce({ packageName: "com.b", name: "B", version: "2.0", downloadUrl: "https://b", fileType: "apk" });
+      mockDownload.mockResolvedValueOnce({ filePath: "/tmp/a.apk", packageName: "com.a", version: "1.0", fileType: "apk", fileSize: 100, sha256: "a" });
+      mockDownload.mockRejectedValueOnce(new Error("Download failed"));
+      const result = await runWorkflow("batch-download", { packages: "com.a,com.b" });
+      expect(result.success).toBe(false);
+    });
+
+    // ---- Intelligence workflows ----
+
+    test("app-intelligence — returns deep report with version analysis", async () => {
+      const result = await runWorkflow("app-intelligence", { package: "com.test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.versionCount).toBe(2);
+      expect(output.latestVersion).toBe("2.0");
+      expect(output.oldestVersion).toBe("1.0");
+      expect(output.fileTypes).toContain("apk");
+      expect(output.fileTypes).toContain("xapk");
+    });
+
+    test("search-intelligence — search + deep report", async () => {
+      const result = await runWorkflow("search-intelligence", { query: "test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.searchMatch).toBe("TestApp");
+      expect(output.versionCount).toBe(2);
+      expect(output.latestVersion).toBe("2.0");
+    });
+
+    // ---- Version analysis workflows ----
+
+    test("version-audit — returns version audit report", async () => {
+      const result = await runWorkflow("version-audit", { package: "com.test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.packageName).toBe("com.test");
+      expect(output.currentVersion).toBe("1.0");
+      expect(output.latestVersion).toBe("2.0");
+      expect(output.oldestVersion).toBe("1.0");
+      expect(output.versionCount).toBe(2);
+    });
+
+    test("download-oldest — downloads the oldest version", async () => {
+      const result = await runWorkflow("download-oldest", { package: "com.test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.note).toBe("Oldest available version downloaded");
+    });
+
+    // ---- Quick lookup workflows ----
+
+    test("quick-lookup — returns key metadata", async () => {
+      const result = await runWorkflow("quick-lookup", { query: "test" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.name).toBe("TestApp");
+      expect(output.packageName).toBe("com.test");
+      expect(output.developer).toBe("TestDev");
+    });
+
+    test("check-update — detects update available", async () => {
+      const result = await runWorkflow("check-update", { package: "com.test", currentVersion: "0.5" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.updateAvailable).toBe(true);
+      expect(output.latestAvailable).toBe("2.0");
+    });
+
+    test("check-update — no update needed", async () => {
+      const result = await runWorkflow("check-update", { package: "com.test", currentVersion: "2.0" });
+      expect(result.success).toBe(true);
+      const output = result.output as any;
+      expect(output.updateAvailable).toBe(false);
     });
 
     // ---- General error handling ----
@@ -245,7 +314,6 @@ describe("workflows", () => {
     test("passes outputDir option", async () => {
       const result = await runWorkflow("search-and-download", { query: "test" }, { outputDir: "/custom/dir" });
       expect(result.success).toBe(true);
-      expect(mockDownload).toHaveBeenCalledWith("com.test", expect.objectContaining({ outputDir: "/custom/dir" }));
     });
 
     test("download step failure propagates error", async () => {

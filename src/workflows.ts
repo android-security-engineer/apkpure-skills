@@ -116,6 +116,86 @@ export const BUILT_IN_WORKFLOWS: Record<string, WorkflowDefinition> = {
       { action: "trending", input: {}, outputKey: "trendingResult" },
     ],
   },
+
+  // ---- Batch / Multi-app workflows ----
+
+  "batch-download": {
+    name: "batch-download",
+    description:
+      "Download multiple apps by package names (comma-separated). Get info for each, then download all.",
+    steps: [
+      { action: "batch-info", input: { packages: "{{packages}}" }, outputKey: "batchInfo" },
+      { action: "batch-download", input: { packages: "{{packages}}" }, outputKey: "batchResults" },
+    ],
+  },
+
+  // ---- Intelligence / Analysis workflows ----
+
+  "app-intelligence": {
+    name: "app-intelligence",
+    description:
+      "Deep intelligence report: full info + all versions + file type analysis — everything a reverse engineer needs",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+    ],
+  },
+
+  "search-intelligence": {
+    name: "search-intelligence",
+    description:
+      "Search by name and get a deep intelligence report — no package name needed",
+    steps: [
+      { action: "search", input: { query: "{{query}}" }, outputKey: "searchResult" },
+      { action: "info", input: { package: "{{searchResult.packageName}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{searchResult.packageName}}" }, outputKey: "versions" },
+    ],
+  },
+
+  // ---- Version analysis workflows ----
+
+  "version-audit": {
+    name: "version-audit",
+    description:
+      "Audit all versions of an app — list versions with version codes, file types, and sizes for diff analysis",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+    ],
+  },
+
+  "download-oldest": {
+    name: "download-oldest",
+    description:
+      "Download the oldest available version of an app — useful for finding vulnerabilities in early releases",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+      { action: "download", input: { package: "{{package}}", version: "{{oldestVersion}}" }, outputKey: "downloadResult" },
+    ],
+  },
+
+  // ---- Quick lookup workflows ----
+
+  "quick-lookup": {
+    name: "quick-lookup",
+    description:
+      "Quick lookup: search by name and return key metadata (name, package, version, developer, category)",
+    steps: [
+      { action: "search", input: { query: "{{query}}" }, outputKey: "searchResult" },
+      { action: "info", input: { package: "{{searchResult.packageName}}" }, outputKey: "appInfo" },
+    ],
+  },
+
+  "check-update": {
+    name: "check-update",
+    description:
+      "Check if an app has a newer version available — compare current version against latest",
+    steps: [
+      { action: "info", input: { package: "{{package}}" }, outputKey: "appInfo" },
+      { action: "versions", input: { package: "{{package}}" }, outputKey: "versions" },
+    ],
+  },
 };
 
 function resolveTemplate(
@@ -199,6 +279,39 @@ async function executeStep(
         const apps = await sdk.trending();
         return { success: true, data: apps };
       }
+      case "batch-info": {
+        const packagesRaw = resolved.packages as string;
+        if (!packagesRaw) return { success: false, error: "packages is required" };
+        const packages = packagesRaw.split(",").map((p: string) => p.trim()).filter(Boolean);
+        if (packages.length === 0) return { success: false, error: "no valid package names" };
+        const results: { package: string; info?: Record<string, unknown>; error?: string }[] = [];
+        for (const pkg of packages) {
+          try {
+            const detail = await sdk.getInfo(pkg);
+            results.push({ package: pkg, info: detail as unknown as Record<string, unknown> ?? undefined });
+          } catch (err) {
+            results.push({ package: pkg, error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+        return { success: true, data: results };
+      }
+      case "batch-download": {
+        const packagesRaw = resolved.packages as string;
+        if (!packagesRaw) return { success: false, error: "packages is required" };
+        const packages = packagesRaw.split(",").map((p: string) => p.trim()).filter(Boolean);
+        if (packages.length === 0) return { success: false, error: "no valid package names" };
+        const results: { package: string; result?: DownloadResult; error?: string }[] = [];
+        for (const pkg of packages) {
+          try {
+            const result = await sdk.download(pkg, { outputDir });
+            results.push({ package: pkg, result });
+          } catch (err) {
+            results.push({ package: pkg, error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+        const allSuccess = results.every((r) => r.result);
+        return { success: allSuccess, data: results };
+      }
       default:
         return { success: false, error: `Unknown action: ${step.action}` };
     }
@@ -255,6 +368,13 @@ export async function runWorkflow(
         if (searchResult.apps.length > 0) {
           ctx.searchResult = searchResult.apps[0];
         }
+      }
+
+      if (step.action === "versions" && Array.isArray(result.data) && (result.data as unknown[]).length > 0) {
+        const versions = result.data as { version: string; versionCode: number; type: string }[];
+        ctx.oldestVersion = versions[versions.length - 1].version;
+        ctx.latestVersion = versions[0].version;
+        ctx.versionCount = versions.length;
       }
     }
   }
@@ -346,6 +466,103 @@ export async function runWorkflow(
     }
     case "trending-and-info": {
       output = ctx.trendingResult;
+      break;
+    }
+    case "batch-download": {
+      output = { results: ctx.batchResults };
+      break;
+    }
+    case "app-intelligence": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const versions = ctx.versions as { version: string; versionCode: number; type: string }[] | undefined;
+      output = {
+        appInfo: ctx.appInfo,
+        versions,
+        versionCount: ctx.versionCount,
+        latestVersion: ctx.latestVersion,
+        oldestVersion: ctx.oldestVersion,
+        fileTypes: versions ? [...new Set(versions.map((v) => v.type))] : [],
+      };
+      break;
+    }
+    case "search-intelligence": {
+      const sr = ctx.searchResult as AppInfo | undefined;
+      const versions = ctx.versions as { version: string; versionCode: number; type: string }[] | undefined;
+      output = {
+        searchMatch: sr?.name,
+        packageName: sr?.packageName,
+        appInfo: ctx.appInfo,
+        versions,
+        versionCount: ctx.versionCount,
+        latestVersion: ctx.latestVersion,
+        oldestVersion: ctx.oldestVersion,
+        fileTypes: versions ? [...new Set(versions.map((v) => v.type))] : [],
+      };
+      break;
+    }
+    case "version-audit": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const versions = ctx.versions as { version: string; versionCode: number; type: string }[] | undefined;
+      output = {
+        packageName: (info as any)?.packageName,
+        currentVersion: (info as any)?.version,
+        versionCount: ctx.versionCount,
+        latestVersion: ctx.latestVersion,
+        oldestVersion: ctx.oldestVersion,
+        versions: versions?.map((v) => ({
+          version: v.version,
+          versionCode: v.versionCode,
+          type: v.type,
+        })),
+      };
+      break;
+    }
+    case "download-oldest": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const dl = ctx.downloadResult as DownloadResult | undefined;
+      if (info && dl) {
+        output = {
+          app: (info as any).name,
+          packageName: dl.packageName,
+          version: dl.version,
+          fileType: dl.fileType,
+          filePath: dl.filePath,
+          fileSize: dl.fileSize,
+          sha256: dl.sha256,
+          note: "Oldest available version downloaded",
+        };
+      }
+      break;
+    }
+    case "quick-lookup": {
+      const sr = ctx.searchResult as AppInfo | undefined;
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      if (sr && info) {
+        output = {
+          name: (info as any).name,
+          packageName: (info as any).packageName,
+          version: (info as any).version,
+          developer: (info as any).developer,
+          category: (info as any).category,
+          rating: (info as any).rating,
+          updateDate: (info as any).updateDate,
+          fileType: (info as any).fileType,
+        };
+      }
+      break;
+    }
+    case "check-update": {
+      const info = ctx.appInfo as Record<string, unknown> | undefined;
+      const versions = ctx.versions as { version: string; versionCode: number; type: string }[] | undefined;
+      const currentVersion = params.currentVersion as string | undefined;
+      const latestAvailable = ctx.latestVersion as string | undefined;
+      output = {
+        packageName: (info as any)?.packageName,
+        currentVersion: currentVersion ?? (info as any)?.version,
+        latestAvailable,
+        updateAvailable: latestAvailable !== undefined && latestAvailable !== (currentVersion ?? (info as any)?.version),
+        versionCount: ctx.versionCount,
+      };
       break;
     }
   }

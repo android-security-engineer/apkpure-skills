@@ -213,16 +213,20 @@ program
   .argument("<name>", "Workflow name (use 'apkpure workflows' to list)")
   .option("-q, --query <query>", "Search query (for search-based workflows)")
   .option("-p, --package <package>", "Package name (for package-based workflows)")
+  .option("--packages <packages>", "Comma-separated package names (for batch workflows)")
   .option("-v, --version <version>", "Version string (for download-version workflow)")
+  .option("--current-version <ver>", "Current version (for check-update workflow)")
   .option("-o, --output <dir>", "Download directory", DEFAULT_DOWNLOAD_DIR)
   .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
   .option("--proxy <proxy>", "HTTP proxy URL")
   .option("-j, --json", "Output raw JSON")
-  .action(async (name: string, opts: { query?: string; package?: string; version?: string; output: string; mode: string; proxy?: string; json?: boolean }) => {
+  .action(async (name: string, opts: { query?: string; package?: string; packages?: string; version?: string; currentVersion?: string; output: string; mode: string; proxy?: string; json?: boolean }) => {
     const params: Record<string, unknown> = {};
     if (opts.query) params.query = opts.query;
     if (opts.package) params.package = opts.package;
+    if (opts.packages) params.packages = opts.packages;
     if (opts.version) params.version = opts.version;
+    if (opts.currentVersion) params.currentVersion = opts.currentVersion;
 
     const result = await runWorkflow(name, params, {
       mode: opts.mode as "api" | "scraping" | "auto",
@@ -240,7 +244,7 @@ program
       process.exit(1);
     }
 
-    if (name === "search-and-download" || name === "download-by-name" || name === "download-latest" || name === "verify-and-download") {
+    if (name === "search-and-download" || name === "download-by-name" || name === "download-latest" || name === "verify-and-download" || name === "download-oldest") {
       const out = result.output as any;
       if (out) {
         console.log(`Workflow: ${name}`);
@@ -253,6 +257,7 @@ program
         console.log(`  SHA256:     ${out.sha256}`);
         if (out.developer) console.log(`  Developer:  ${out.developer}`);
         if (out.updateDate) console.log(`  Updated:    ${out.updateDate}`);
+        if (out.note) console.log(`  Note:       ${out.note}`);
       }
     } else if (name === "download-version") {
       const out = result.output as any;
@@ -266,34 +271,76 @@ program
         console.log(`  Size:       ${(out.fileSize / 1024 / 1024).toFixed(1)} MB`);
         console.log(`  SHA256:     ${out.sha256}`);
       }
-    } else if (name === "search-and-info") {
+    } else if (name === "search-and-info" || name === "quick-lookup") {
       const out = result.output as any;
       if (out) {
-        console.log(`Workflow: search-and-info`);
-        console.log(`  App:        ${out.searchMatch}`);
+        console.log(`Workflow: ${name}`);
+        console.log(`  App:        ${out.searchMatch ?? out.name}`);
         console.log(`  Package:    ${out.packageName}`);
         console.log(`  Version:    ${out.version}`);
         if (out.developer) console.log(`  Developer:  ${out.developer}`);
         if (out.category) console.log(`  Category:   ${out.category}`);
         if (out.rating) console.log(`  Rating:     ${out.rating}`);
-        if (out.downloadUrl) console.log(`  Download:   ${out.fileType?.toUpperCase()} available`);
+        if (out.updateDate) console.log(`  Updated:    ${out.updateDate}`);
+        if (out.fileType) console.log(`  Type:       ${out.fileType.toUpperCase()}`);
       }
-    } else if (name === "search-and-report" || name === "app-report" || name === "info-and-versions") {
+    } else if (name === "search-and-report" || name === "app-report" || name === "info-and-versions" || name === "app-intelligence" || name === "search-intelligence") {
       const out = result.output as any;
       if (out?.appInfo) {
         const info = out.appInfo;
-        console.log(`App Report: ${info.name}`);
+        console.log(`Workflow: ${name}`);
+        console.log(`  App:          ${info.name}`);
         console.log(`  Package:      ${info.packageName}`);
         console.log(`  Version:      ${info.version}`);
         console.log(`  Developer:    ${info.developer ?? "N/A"}`);
         console.log(`  Rating:       ${info.rating ?? "N/A"}`);
         console.log(`  Updated:      ${info.updateDate ?? "N/A"}`);
+        if (out.versionCount !== undefined) console.log(`  Versions:     ${out.versionCount} (latest: ${out.latestVersion}, oldest: ${out.oldestVersion})`);
+        if (out.fileTypes?.length) console.log(`  File Types:   ${out.fileTypes.join(", ").toUpperCase()}`);
         console.log();
       }
       if (out?.versions?.length) {
-        console.log(`Versions (${out.versions.length}):`);
+        console.log(`Version History:`);
         for (const v of out.versions) {
           console.log(`  ${v.version}  [${v.type.toUpperCase()}]  code=${v.versionCode}`);
+        }
+      }
+    } else if (name === "version-audit") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: version-audit`);
+        console.log(`  Package:      ${out.packageName}`);
+        console.log(`  Current:      ${out.currentVersion}`);
+        console.log(`  Latest:       ${out.latestVersion}`);
+        console.log(`  Oldest:       ${out.oldestVersion}`);
+        console.log(`  Total:        ${out.versionCount} versions`);
+        console.log();
+        if (out.versions?.length) {
+          for (const v of out.versions) {
+            console.log(`  ${v.version}  [${v.type.toUpperCase()}]  code=${v.versionCode}`);
+          }
+        }
+      }
+    } else if (name === "check-update") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: check-update`);
+        console.log(`  Package:      ${out.packageName}`);
+        console.log(`  Current:      ${out.currentVersion}`);
+        console.log(`  Latest:       ${out.latestAvailable}`);
+        console.log(`  Update:       ${out.updateAvailable ? "YES" : "No"}`);
+        console.log(`  Versions:     ${out.versionCount} available`);
+      }
+    } else if (name === "batch-download") {
+      const out = result.output as any;
+      if (out?.results) {
+        console.log(`Workflow: batch-download`);
+        for (const r of out.results) {
+          if (r.result) {
+            console.log(`  ${r.package}  v${r.result.version}  ${(r.result.fileSize / 1024 / 1024).toFixed(1)} MB  ${r.result.filePath}`);
+          } else {
+            console.log(`  ${r.package}  FAILED: ${r.error}`);
+          }
         }
       }
     } else {
