@@ -62,3 +62,23 @@ export interface SdkConfig {
   timeout?: number;
   proxy?: string;
 }
+
+export interface WorkflowStep {
+  action: string;
+  input: Record<string, unknown>;
+  outputKey?: string;
+}
+
+export interface WorkflowDefinition {
+  name: string;
+  description: string;
+  steps: WorkflowStep[];
+}
+
+export interface WorkflowResult {
+  workflow: string;
+  success: boolean;
+  steps: { action: string; success: boolean; data?: unknown; error?: string }[];
+  output?: unknown;
+  error?: string;
+}

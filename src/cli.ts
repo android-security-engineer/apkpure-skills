@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { ApkPure } from "./core/apkpure.js";
 import { DEFAULT_DOWNLOAD_DIR } from "./config.js";
+import { runWorkflow, listWorkflows } from "./workflows.js";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -204,6 +205,85 @@ program
     console.log(`Total: ${versions.length} versions.`);
     console.log(`\nDownload a specific version:`);
     console.log(`  npx apkpure download ${pkg} -v ${versions[0]?.version}`);
+  });
+
+program
+  .command("workflow")
+  .description("Run a built-in workflow (composable high-level operations)")
+  .argument("<name>", "Workflow name (search-and-download, download-by-name, app-report)")
+  .option("-q, --query <query>", "Search query (for search-based workflows)")
+  .option("-p, --package <package>", "Package name (for package-based workflows)")
+  .option("-o, --output <dir>", "Download directory", DEFAULT_DOWNLOAD_DIR)
+  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
+  .option("--proxy <proxy>", "HTTP proxy URL")
+  .option("-j, --json", "Output raw JSON")
+  .action(async (name: string, opts: { query?: string; package?: string; output: string; mode: string; proxy?: string; json?: boolean }) => {
+    const params: Record<string, unknown> = {};
+    if (opts.query) params.query = opts.query;
+    if (opts.package) params.package = opts.package;
+
+    const result = await runWorkflow(name, params, {
+      mode: opts.mode as "api" | "scraping" | "auto",
+      proxy: opts.proxy,
+      outputDir: resolve(opts.output),
+    });
+
+    if (opts.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    if (!result.success) {
+      console.error(`Workflow "${name}" failed: ${result.error}`);
+      process.exit(1);
+    }
+
+    if (name === "search-and-download" || name === "download-by-name") {
+      const out = result.output as any;
+      if (out) {
+        console.log(`Workflow: ${name}`);
+        console.log(`  App:        ${out.app}`);
+        console.log(`  Package:    ${out.packageName}`);
+        console.log(`  Version:    ${out.version}`);
+        console.log(`  Type:       ${out.fileType?.toUpperCase()}`);
+        console.log(`  File:       ${out.filePath}`);
+        console.log(`  Size:       ${(out.fileSize / 1024 / 1024).toFixed(1)} MB`);
+        console.log(`  SHA256:     ${out.sha256}`);
+      }
+    } else if (name === "app-report") {
+      const out = result.output as any;
+      if (out?.appInfo) {
+        const info = out.appInfo;
+        console.log(`App Report: ${info.name}`);
+        console.log(`  Package:      ${info.packageName}`);
+        console.log(`  Version:      ${info.version}`);
+        console.log(`  Developer:    ${info.developer ?? "N/A"}`);
+        console.log(`  Rating:       ${info.rating ?? "N/A"}`);
+        console.log(`  Updated:      ${info.updateDate ?? "N/A"}`);
+        console.log();
+      }
+      if (out?.versions?.length) {
+        console.log(`Versions (${out.versions.length}):`);
+        for (const v of out.versions) {
+          console.log(`  ${v.version}  [${v.type.toUpperCase()}]  code=${v.versionCode}`);
+        }
+      }
+    } else {
+      console.log(JSON.stringify(result.output, null, 2));
+    }
+  });
+
+program
+  .command("workflows")
+  .description("List available workflows")
+  .action(() => {
+    const workflows = listWorkflows();
+    console.log("Available workflows:\n");
+    for (const wf of workflows) {
+      console.log(`  ${wf.name}`);
+      console.log(`    ${wf.description}`);
+      console.log();
+    }
   });
 
 program.parse();
