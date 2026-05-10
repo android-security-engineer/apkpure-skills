@@ -90,15 +90,16 @@ program
   .argument("<package>", "Android package name")
   .option("-o, --output <dir>", "Output directory", "./apks")
   .option("-v, --version <version>", "Specific version to download")
+  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("-j, --json", "Output raw JSON instead of progress info")
   .action(
     async (
       pkg: string,
-      opts: { output: string; version?: string; proxy?: string; json?: boolean }
+      opts: { output: string; version?: string; mode: string; proxy?: string; json?: boolean }
     ) => {
       mkdirSync(opts.output, { recursive: true });
-      const sdk = new ApkPure({ proxy: opts.proxy });
+      const sdk = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
 
       if (!opts.json) {
         const detail = await sdk.getInfo(pkg);
@@ -146,10 +147,11 @@ program
 program
   .command("trending")
   .description("List trending games (24h)")
+  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("-j, --json", "Output raw JSON instead of list")
-  .action(async (opts: { proxy?: string; json?: boolean }) => {
-    const sdk = new ApkPure({ proxy: opts.proxy });
+  .action(async (opts: { mode: string; proxy?: string; json?: boolean }) => {
+    const sdk = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
     const apps = await sdk.trending();
 
     if (opts.json) {
@@ -174,10 +176,11 @@ program
   .command("versions")
   .description("List all available versions of an app")
   .argument("<package>", "Android package name")
+  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("-j, --json", "Output raw JSON instead of table")
-  .action(async (pkg: string, opts: { proxy?: string; json?: boolean }) => {
-    const sdk = new ApkPure({ proxy: opts.proxy });
+  .action(async (pkg: string, opts: { mode: string; proxy?: string; json?: boolean }) => {
+    const sdk = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
     const versions = await sdk.getVersions(pkg);
 
     if (opts.json) {
