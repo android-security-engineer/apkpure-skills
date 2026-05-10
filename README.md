@@ -12,6 +12,28 @@ npx apkpure search telegram
 
 No install, no setup. Works behind GFW out of the box.
 
+## Install
+
+### Claude Code (Marketplace)
+
+```bash
+# Add the marketplace
+claude plugin marketplace add android-security-engineer/apkpure-skills
+
+# Install the plugin
+claude plugin install apkpure@apkpure-skills
+```
+
+This installs the `apkpure` skill with 24 built-in workflows, slash commands, and auto-detection — directly inside Claude Code.
+
+### npm
+
+```bash
+npm install -g apkpure
+# or use without installing:
+npx apkpure search telegram
+```
+
 ## Features
 
 - **Search** — find apps by keyword with pagination

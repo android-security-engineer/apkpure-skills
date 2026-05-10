@@ -7,6 +7,17 @@ description: Search, get info, list versions, and download Android APK files fro
 
 Complete workflow for finding and downloading Android APK files.
 
+## Install
+
+```bash
+# Claude Code marketplace
+claude plugin marketplace add android-security-engineer/apkpure-skills
+claude plugin install apkpure@apkpure-skills
+
+# Or use directly via npx
+npx apkpure search telegram
+```
+
 ## Quick Start
 
 ```bash
