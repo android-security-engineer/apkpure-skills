@@ -235,4 +235,19 @@ describe("MobileClient", () => {
       expect(url).toContain("/v3/get_app_detail");
     });
   });
+
+  describe("get() without params", () => {
+    test("constructs URL without query string when params omitted", async () => {
+      mockedFetchText.mockResolvedValueOnce(
+        JSON.stringify({ result: "ok" })
+      );
+
+      // Call the get() method directly without params
+      const result = await (client as any).get("some_endpoint");
+
+      const [url] = mockedFetchText.mock.calls[0] as [string, any];
+      expect(url).toContain("/v3/some_endpoint");
+      expect(url).not.toContain("?");
+    });
+  });
 });
