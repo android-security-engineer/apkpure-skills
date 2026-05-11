@@ -12,6 +12,9 @@ export const DEFAULT_CONFIG: Required<SdkConfig> = {
   proxy: "",
 };
 
+// These credentials are extracted from the APKPure Android app (com.apkpure.aegon)
+// via reverse engineering. They are embedded in every APKPure installation and
+// shared by all users — not personal secrets. APKPure may rotate them at any time.
 export const MOBILE_CONFIG: MobileConfig = {
   apiBase: "https://tapi.pureapk.com/v3",
   authKey: "qNKrYmW8SSUqJ73k3P2yfMxRTo3sJTR",
