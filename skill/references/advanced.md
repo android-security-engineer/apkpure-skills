@@ -196,7 +196,7 @@ interface TrendingApp {
 ```typescript
 class ApkPure {
   constructor(config?: Partial<SdkConfig>);
-  search(query: string): Promise<SearchResult>;
+  search(query: string, page?: number): Promise<SearchResult>;
   getInfo(packageName: string): Promise<AppDetail | null>;
   getVersions(packageName: string): Promise<AppVersion[]>;
   download(packageName: string, options: DownloadOptions): Promise<DownloadResult>;
@@ -253,7 +253,7 @@ Versions for org.telegram.messenger:
 Total: 15 versions.
 
 Download a specific version:
-  npx apkpure download org.telegram.messenger -v 10.5.2
+  apkpure download org.telegram.messenger -v 10.5.2
 ```
 
 ### Download output (default)

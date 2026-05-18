@@ -10,21 +10,20 @@ Complete workflow for finding and downloading Android APK files.
 ## Install
 
 ```bash
-# Claude Code marketplace
+# Claude Code marketplace (recommended)
 claude plugin marketplace add android-security-engineer/apkpure-skills
 claude plugin install apkpure@apkpure-skills
-
-# Or use directly via npx
-npx apkpure search telegram
 ```
+
+> **Note:** The npm package name `apkpure` is taken by an unrelated project. Do not use `npm install -g apkpure` or `npx apkpure` — those will install a different package.
 
 ## Quick Start
 
 ```bash
-npx apkpure search telegram
-npx apkpure info org.telegram.messenger
-npx apkpure versions org.telegram.messenger
-npx apkpure download org.telegram.messenger
+apkpure search telegram
+apkpure info org.telegram.messenger
+apkpure versions org.telegram.messenger
+apkpure download org.telegram.messenger
 ```
 
 ## Workflow: Search → Info → Versions → Download
@@ -34,8 +33,8 @@ npx apkpure download org.telegram.messenger
 Find apps by name or keyword. Returns package name, version, developer, category.
 
 ```bash
-npx apkpure search "whatsapp"
-npx apkpure search "微信"
+apkpure search "whatsapp"
+apkpure search "微信"
 ```
 
 Default output is human-readable. Add `--json` for machine-readable output.
@@ -47,7 +46,7 @@ Output fields: package name (needed for subsequent commands), app name, version,
 Use the package name from search results to get full details.
 
 ```bash
-npx apkpure info com.whatsapp
+apkpure info com.whatsapp
 ```
 
 Returns: name, version, version code, developer, category, rating, update date, description, download availability (APK/XAPK/APKS), screenshots.
@@ -57,7 +56,7 @@ Returns: name, version, version code, developer, category, rating, update date, 
 See all available versions before downloading.
 
 ```bash
-npx apkpure versions org.telegram.messenger
+apkpure versions org.telegram.messenger
 ```
 
 Returns: version name, version code, file type (APK/XAPK/APKS). Latest version is marked.
@@ -68,13 +67,13 @@ Download latest version or a specific version.
 
 ```bash
 # Latest version
-npx apkpure download com.whatsapp
+apkpure download com.whatsapp
 
 # Specific version
-npx apkpure download org.telegram.messenger -v 10.5.1
+apkpure download org.telegram.messenger -v 10.5.1
 
 # Custom output directory
-npx apkpure download com.whatsapp -o ~/Downloads
+apkpure download com.whatsapp -o ~/Downloads
 ```
 
 Returns: file path, file size, file type, SHA256 hash.
@@ -82,7 +81,7 @@ Returns: file path, file size, file type, SHA256 hash.
 ### Extra: Trending
 
 ```bash
-npx apkpure trending
+apkpure trending
 ```
 
 Lists trending games in the last 24 hours.
@@ -93,10 +92,10 @@ High-level operations that compose multiple steps into one call. Perfect for AI 
 
 ```bash
 # List all available workflows
-npx apkpure workflows
+apkpure workflows
 
 # Run a workflow
-npx apkpure workflow <name> [options]
+apkpure workflow <name> [options]
 ```
 
 ### Search-based Workflows (input app name, no package name needed)
@@ -147,25 +146,25 @@ npx apkpure workflow <name> [options]
 
 ```bash
 # One-step: download by name
-npx apkpure workflow download-by-name -q "Telegram"
+apkpure workflow download-by-name -q "Telegram"
 
 # Deep intelligence report for reverse engineering
-npx apkpure workflow app-intelligence -p org.telegram.messenger
+apkpure workflow app-intelligence -p org.telegram.messenger
 
 # Security scan: download + analyze versions
-npx apkpure workflow security-scan -p com.whatsapp
+apkpure workflow security-scan -p com.whatsapp
 
 # Download oldest version for vulnerability research
-npx apkpure workflow download-oldest -p com.whatsapp
+apkpure workflow download-oldest -p com.whatsapp
 
 # Check if an update is available
-npx apkpure workflow check-update -p com.whatsapp --current-version 2.25.1
+apkpure workflow check-update -p com.whatsapp --current-version 2.25.1
 
 # Validate multiple package names
-npx apkpure workflow batch-validate --packages "com.whatsapp,org.telegram.messenger,com.fake.app"
+apkpure workflow batch-validate --packages "com.whatsapp,org.telegram.messenger,com.fake.app"
 
 # Explore apps in a category
-npx apkpure workflow explore-category -q "VPN"
+apkpure workflow explore-category -q "VPN"
 ```
 
 ### Programmatic Workflows
@@ -230,38 +229,38 @@ const workflows = await handleSkillRequest({
 
 ## Proxy
 
-Auto-detected in order: `HTTPS_PROXY` env var → Clash config → port scan (7897, 7890, 1080...). Works behind GFW without any manual config.
+Auto-detected in order: environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, case-insensitive including lowercase) → Clash/Mihomo config files → port scan (7897, 7890, 1080, 1087, 10809...). Works behind GFW without any manual config.
 
 Override if needed:
 
 ```bash
-npx apkpure search telegram --proxy http://127.0.0.1:7897
+apkpure search telegram --proxy http://127.0.0.1:7897
 ```
 
 ## Typical Session
 
 ```bash
 # 1. Find the app
-npx apkpure search "signal messenger"
+apkpure search "signal messenger"
 # → Found: org.thoughtcrime.securesms
 
 # 2. Check details
-npx apkpure info org.thoughtcrime.securesms
+apkpure info org.thoughtcrime.securesms
 # → Version 7.0.0, 80MB, APK
 
 # 3. Check available versions
-npx apkpure versions org.thoughtcrime.securesms
+apkpure versions org.thoughtcrime.securesms
 # → 7.0.0 (latest), 6.48.2, 6.47.2, ...
 
 # 4. Download
-npx apkpure download org.thoughtcrime.securesms -o ./apks
+apkpure download org.thoughtcrime.securesms -o ./apks
 # → Saved: ./apks/org.thoughtcrime.securesms-7.0.0.apk (SHA256: abc...)
 ```
 
 Or use a workflow to do it all in one step:
 
 ```bash
-npx apkpure workflow download-by-name -q "Signal"
+apkpure workflow download-by-name -q "Signal"
 # → Downloads Signal and returns file path + SHA256
 ```
 

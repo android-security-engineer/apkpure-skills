@@ -2,19 +2,20 @@
 
 CLI & SDK to search, inspect, and download Android APKs/XAPKs from [APKPure](https://apkpure.com) — zero config, proxy auto-detected.
 
-[![npm version](https://img.shields.io/npm/v/apkpure.svg)](https://www.npmjs.com/package/apkpure)
-[![Node.js >=20](https://img.shields.io/node/v/apkpure.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js >=20](https://img.shields.io/node/v/apkpure.svg)](https://nodejs.org/)
 
 ```bash
-npx apkpure search telegram
+apkpure search telegram
 ```
 
 No install, no setup. Works behind GFW out of the box.
 
+---
+
 ## Install
 
-### Claude Code (Marketplace)
+### Claude Code (Recommended)
 
 ```bash
 # Add the marketplace
@@ -26,51 +27,57 @@ claude plugin install apkpure@apkpure-skills
 
 This installs the `apkpure` skill with 24 built-in workflows, slash commands, and auto-detection — directly inside Claude Code.
 
-### npm
+### From Source
 
 ```bash
-npm install -g apkpure
-# or use without installing:
-npx apkpure search telegram
+git clone https://github.com/android-security-engineer/apkpure-skills.git
+cd apkpure-skills
+npm install && npm run build
+
+# Use the CLI directly
+node dist/cli.js search telegram
 ```
 
-## Features
+> **Note:** The npm package name `apkpure` is already taken by another project. `npm install -g apkpure` and `npx apkpure` will install a different, unrelated package. Use the Claude Code skill installation or build from source instead.
 
-- **Search** — find apps by keyword with pagination
-- **Info** — get detailed app metadata (version, size, developer, etc.)
-- **Download** — grab APK/XAPK files with SHA-256 verification
-- **Versions** — list all available versions of an app
-- **Trending** — discover trending apps
-- **Dual-mode** — mobile API + web scraping with automatic fallback
-- **Proxy auto-detection** — env vars, Clash config, port scan
-- **AI-ready** — programmatic SDK and skill handler for AI agents
+---
 
 ## Quick Start
 
+After installing as a Claude Code skill, use the `/apkpure` command:
+
+```
+/apkpure search telegram
+```
+
+Or use the CLI directly if building from source:
+
 ```bash
 # Search
-npx apkpure search "whatsapp"
-npx apkpure search "微信" --page 2
+node dist/cli.js search "whatsapp"
+node dist/cli.js search "微信" --page 2
 
 # Get app details
-npx apkpure info com.whatsapp
+node dist/cli.js info com.whatsapp
 
 # List all versions
-npx apkpure versions org.telegram.messenger
+node dist/cli.js versions org.telegram.messenger
 
 # Download latest APK/XAPK
-npx apkpure download com.whatsapp
+node dist/cli.js download com.whatsapp
 
 # Download a specific version
-npx apkpure download org.telegram.messenger -v 10.5.1
+node dist/cli.js download org.telegram.messenger -v 10.5.1
 
 # Download to a custom directory
-npx apkpure download com.whatsapp -o ~/Downloads
+node dist/cli.js download com.whatsapp -o ~/Downloads
 
 # Output as JSON (for scripting)
-npx apkpure search telegram --json
-npx apkpure info com.whatsapp --json
+node dist/cli.js search telegram --json
+node dist/cli.js info com.whatsapp --json
 ```
+
+---
 
 ## CLI Reference
 
@@ -89,8 +96,8 @@ npx apkpure info com.whatsapp --json
 Search for apps on APKPure.
 
 ```bash
-npx apkpure search "telegram"
-npx apkpure search "微信" --page 2 --json
+apkpure search "telegram"
+apkpure search "微信" --page 2 --json
 ```
 
 | Option | Description | Default |
@@ -102,8 +109,8 @@ npx apkpure search "微信" --page 2 --json
 Get detailed information about an app.
 
 ```bash
-npx apkpure info com.whatsapp
-npx apkpure info org.telegram.messenger --json
+apkpure info com.whatsapp
+apkpure info org.telegram.messenger --json
 ```
 
 #### `download <package>`
@@ -111,8 +118,8 @@ npx apkpure info org.telegram.messenger --json
 Download an APK or XAPK file.
 
 ```bash
-npx apkpure download com.whatsapp
-npx apkpure download org.telegram.messenger -v 10.5.1 -o ~/Downloads
+apkpure download com.whatsapp
+apkpure download org.telegram.messenger -v 10.5.1 -o ~/Downloads
 ```
 
 | Option | Description | Default |
@@ -125,7 +132,7 @@ npx apkpure download org.telegram.messenger -v 10.5.1 -o ~/Downloads
 List all available versions of an app.
 
 ```bash
-npx apkpure versions org.telegram.messenger
+apkpure versions org.telegram.messenger
 ```
 
 #### `trending`
@@ -133,82 +140,28 @@ npx apkpure versions org.telegram.messenger
 List trending apps.
 
 ```bash
-npx apkpure trending
+apkpure trending
 ```
+
+---
 
 ## Workflows
 
-High-level operations that compose multiple skills into one step. Perfect for AI agents and automation.
+24 built-in workflows for common multi-step operations. Each workflow chains multiple SDK calls into a single command.
+
+### Listing Workflows
 
 ```bash
-# List available workflows
-npx apkpure workflows
-
-# Download by app name — just say the name, get the APK
-npx apkpure workflow download-by-name -q "Telegram"
-
-# Search and download in one step
-npx apkpure workflow search-and-download -q "WhatsApp" -o ~/Downloads
-
-# Search and get info in one step
-npx apkpure workflow search-and-info -q "Signal"
-
-# Full report by name (no package name needed)
-npx apkpure workflow search-and-report -q "Telegram"
-
-# Download latest with full metadata
-npx apkpure workflow download-latest -p org.telegram.messenger
-
-# Download a specific version
-npx apkpure workflow download-version -p org.telegram.messenger -v 10.5.1
-
-# Verify app exists, then download
-npx apkpure workflow verify-and-download -p com.whatsapp
-
-# Full app report (info + all versions)
-npx apkpure workflow app-report -p org.telegram.messenger
-
-# Deep intelligence report for reverse engineering
-npx apkpure workflow app-intelligence -p org.telegram.messenger
-
-# Security scan: download + version analysis
-npx apkpure workflow security-scan -p com.whatsapp
-
-# Download with SHA256 integrity verification
-npx apkpure workflow download-and-verify -p com.whatsapp
-
-# Version jump analysis for diff targeting
-npx apkpure workflow compare-versions -p com.whatsapp
-
-# Version audit — all versions with codes and types
-npx apkpure workflow version-audit -p com.whatsapp
-
-# Download oldest version for vulnerability research
-npx apkpure workflow download-oldest -p com.whatsapp
-
-# Quick lookup — just the key metadata
-npx apkpure workflow quick-lookup -q "Signal"
-
-# Check if an update is available
-npx apkpure workflow check-update -p com.whatsapp --current-version 2.25.1
-
-# Explore apps in a category
-npx apkpure workflow explore-category -q "VPN"
-
-# Validate a package name
-npx apkpure workflow validate-package -p com.whatsapp
-
-# Batch validate multiple packages
-npx apkpure workflow batch-validate --packages "com.whatsapp,org.telegram.messenger"
-
-# Batch info for multiple apps (no download)
-npx apkpure workflow batch-info --packages "com.whatsapp,org.telegram.messenger"
-
-# Batch download multiple apps
-npx apkpure workflow batch-download --packages "com.whatsapp,org.telegram.messenger"
+apkpure workflows
 ```
 
-### Built-in Workflows (24)
+### Running a Workflow
+
+```bash
+apkpure workflow download-by-name --query "Telegram"
+```
+
+### Available Workflows
 
 #### Search-based (input app name, no package name needed)
 
@@ -279,41 +232,29 @@ if (result.success) {
 }
 ```
 
-### AI Agent Workflows
+> **Note:** Programmatic import (`import from "apkpure"`) requires building from source and referencing the local package. It is not available via the npm registry.
 
-```typescript
-import { handleSkillRequest } from "apkpure";
-
-// One-step: download by name
-const result = await handleSkillRequest({
-  action: "workflow",
-  workflow: "download-by-name",
-  params: { query: "Telegram" },
-});
-
-// List workflows
-const workflows = await handleSkillRequest({
-  action: "list-workflows",
-});
-```
+---
 
 ## Proxy Auto-Detection
 
-Works behind firewalls and GFW without manual configuration. Detection order:
+Works behind GFW without any configuration. The SDK auto-detects proxy settings in this order:
 
-1. **Environment variables** — `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`
-2. **Clash config files** — reads `mixed-port` / `port` from Clash config
-3. **Port scanning** — probes common proxy ports (7897, 7890, 1080, etc.)
+1. **Environment variables:** `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` (case-insensitive, including lowercase variants)
+2. **Clash config:** Reads `mixed-port` from Clash/Mihomo config directories
+3. **Port scan:** Checks common proxy ports (7897, 7890, 1080, 1087, 10809, etc.) on localhost
 
-Override if needed:
+Override with `--proxy` flag if auto-detection fails:
 
 ```bash
-npx apkpure search telegram --proxy http://127.0.0.1:7897
+apkpure search telegram --proxy http://127.0.0.1:7890
 ```
+
+---
 
 ## Programmatic SDK
 
-Use as a Node.js library:
+Use as a Node.js library (requires building from source):
 
 ```typescript
 import { ApkPure } from "apkpure";
@@ -341,39 +282,9 @@ console.log(`SHA-256: ${result.sha256}`);
 const versions = await sdk.getVersions("org.telegram.messenger");
 ```
 
-### SDK Types
+> **Note:** Programmatic import requires building from source and referencing the local package. The `apkpure` name on npm is an unrelated package.
 
-```typescript
-interface AppInfo {
-  packageName: string;
-  name: string;
-  version?: string;
-  versionCode?: number;
-  iconUrl?: string;
-  developer?: string;
-  category?: string;
-  rating?: string;
-  description?: string;
-  size?: number;
-  fileType?: "apk" | "xapk" | "apks";
-}
-
-interface AppDetail extends AppInfo {
-  downloadUrl: string;
-  updateDate?: string;
-  requiresAndroid?: string;
-  screenshots?: string[];
-}
-
-interface DownloadResult {
-  filePath: string;
-  packageName: string;
-  version: string;
-  fileType: string;
-  fileSize: number;
-  sha256: string;
-}
-```
+---
 
 ## AI Agent Integration
 
@@ -389,47 +300,61 @@ const result = await handleSkillRequest({
 });
 ```
 
-Supported actions: `search`, `info`, `download`, `versions`, `trending`.
+Supported actions: `search`, `info`, `download`, `versions`, `trending`, `workflow`, `list-workflows`.
 
-## Install Globally
+---
 
-```bash
-npm install -g apkpure
-apkpure search telegram
+### SDK Types
+
+```typescript
+interface AppInfo {
+  packageName: string;
+  name: string;
+  version: string;
+  versionCode?: number;
+  size?: number;
+  iconUrl?: string;
+  description?: string;
+  developer?: string;
+  rating?: string;
+  category?: string;
+}
+
+interface AppDetail extends AppInfo {
+  downloadUrl: string;
+  fileType: "apk" | "xapk" | "apks";
+  screenshots?: string[];
+  updateDate?: string;
+  requiresAndroid?: string;
+  olderVersions?: AppVersion[];
+}
+
+interface AppVersion {
+  version: string;
+  versionCode: number;
+  downloadUrl: string;
+  fileSize?: string;
+  type: "apk" | "xapk" | "apks";
+}
+
+interface DownloadOptions {
+  outputDir: string;
+  version?: string;
+  fileName?: string;
+  onProgress?: (downloaded: number, total: number) => void;
+}
+
+interface DownloadResult {
+  filePath: string;
+  packageName: string;
+  version: string;
+  fileType: string;
+  fileSize: number;
+  sha256: string;
+}
 ```
 
-## Architecture
-
-```
-src/
-├── cli.ts                  # Commander CLI entry point
-├── skill-handler.ts        # AI agent skill handler
-├── config.ts               # Constants and defaults
-├── core/
-│   ├── apkpure.ts          # Main SDK class (dual-mode orchestration)
-│   └── downloader.ts       # File download with SHA-256 verification
-├── client/
-│   ├── mobile-client.ts    # APKPure mobile API client (signed requests)
-│   └── scraping-client.ts  # Web scraping client (Cheerio-based)
-├── types/
-│   ├── index.ts            # Public SDK types
-│   └── api.ts              # Mobile API response types
-└── utils/
-    ├── crypto.ts           # HMAC signing for mobile API
-    ├── headers.ts          # Default HTTP headers
-    ├── http.ts             # HTTP client (fetch + proxy support)
-    └── proxy.ts            # Proxy auto-detection
-```
-
-**Dual-mode strategy:** In `auto` mode, the mobile API is tried first for speed and structured data. If it fails, the scraping client falls back automatically. You can force a specific mode with `--mode api` or `--mode scraping`.
-
-## Test Coverage
-
-172 tests with 96%+ line coverage across all core modules.
-
-```bash
-npm test
-```
+---
 
 ## License
 

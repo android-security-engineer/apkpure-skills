@@ -111,7 +111,7 @@ export const BUILT_IN_WORKFLOWS: Record<string, WorkflowDefinition> = {
   "trending-and-info": {
     name: "trending-and-info",
     description:
-      "List trending apps and get detailed info for each (first page of trending)",
+      "List trending apps (first page of trending results)",
     steps: [
       { action: "trending", input: {}, outputKey: "trendingResult" },
     ],

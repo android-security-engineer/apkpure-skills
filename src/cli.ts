@@ -204,7 +204,7 @@ program
     console.log();
     console.log(`Total: ${versions.length} versions.`);
     console.log(`\nDownload a specific version:`);
-    console.log(`  npx apkpure download ${pkg} -v ${versions[0]?.version}`);
+    console.log(`  apkpure download ${pkg} -v ${versions[0]?.version}`);
   });
 
 program

@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(npx apkpure:*), Bash(node:*apkpure*:*), Read
+allowed-tools: Bash(apkpure:*), Bash(node:*apkpure*:*), Read
 description: Search, download, and analyze Android APKs from APKPure
 ---
 
@@ -9,16 +9,16 @@ The user wants to perform an operation on APKPure: search, info, versions, downl
 
 ## Your task
 
-Run the appropriate `npx apkpure` command based on the user's request. The CLI is installed via `npm install -g apkpure` or available via `npx apkpure`.
+Run the appropriate `apkpure` command based on the user's request. The CLI is installed as a Claude Code skill.
 
 Available commands:
-- `npx apkpure search <query>` — Search for apps
-- `npx apkpure info <package>` — Get app details
-- `npx apkpure versions <package>` — List all versions
-- `npx apkpure download <package>` — Download APK/XAPK
-- `npx apkpure trending` — List trending apps
-- `npx apkpure workflows` — List all 24 built-in workflows
-- `npx apkpure workflow <name> [options]` — Run a workflow
+- `apkpure search <query>` — Search for apps
+- `apkpure info <package>` — Get app details
+- `apkpure versions <package>` — List all versions
+- `apkpure download <package>` — Download APK/XAPK
+- `apkpure trending` — List trending apps
+- `apkpure workflows` — List all 24 built-in workflows
+- `apkpure workflow <name> [options]` — Run a workflow
 
 Common workflows:
 - `workflow download-by-name -q "Telegram"` — Download by name
