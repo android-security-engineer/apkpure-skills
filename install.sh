@@ -18,9 +18,20 @@ if [ "$NODE_VERSION" -lt 20 ]; then
   exit 1
 fi
 
-# Install apkpure CLI globally from the local package
+# Build the project first
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+  echo "Installing dependencies..."
+  (cd "$SCRIPT_DIR" && npm install --production=false)
+fi
+
+if [ ! -f "$SCRIPT_DIR/dist/cli.js" ]; then
+  echo "Building project..."
+  (cd "$SCRIPT_DIR" && npm run build)
+fi
+
+# Install apkpure CLI globally from the local package
 if [ -f "$SCRIPT_DIR/dist/cli.js" ]; then
   # Install from local dist
   npm install -g "$SCRIPT_DIR" 2>/dev/null || {
