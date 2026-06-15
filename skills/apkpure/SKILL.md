@@ -1,6 +1,6 @@
 ---
 name: apkpure
-description: Search, get info, list versions, and download Android APK files from APKPure. Use when the user asks to: (1) search for Android apps by name or keyword, (2) get detailed app information (version, developer, description, download URL), (3) list all available versions of an app, (4) download APK/XAPK files to local disk, (5) find trending apps, (6) run composable workflows for one-step operations. Supports auto-detection of local Clash proxy for GFW environments. Complete workflow: search → info → versions → download.
+description: "Search, get info, list versions, and download Android APK files from APKPure. Use when the user asks to: (1) search for Android apps by name or keyword, (2) get detailed app information (version, developer, description, download URL), (3) list all available versions of an app, (4) download APK/XAPK files to local disk, (5) find trending apps, (6) run composable workflows for one-step operations. Supports auto-detection of local Clash proxy for GFW environments. Complete workflow: search → info → versions → download."
 ---
 
 # APKPure — Android APK Search & Download

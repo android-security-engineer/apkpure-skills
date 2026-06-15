@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# APKPure CLI launcher — installed on PATH via the plugin's bin/ directory.
+# Self-resolves its own location so it works from any cache path.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec node "$DIR/../dist/cli.cjs" "$@"

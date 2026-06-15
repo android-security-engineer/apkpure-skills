@@ -18,9 +18,9 @@ Run the appropriate `apkpure` command based on the user's request. The CLI is in
 **How to invoke the CLI:**
 
 Try in order:
-1. `apkpure <command>` — if installed globally
-2. `node /home/cc11001100/github/android-security-engineer/apkpure-skills/dist/cli.js <command>` — direct path fallback
-3. `bash /home/cc11001100/github/android-security-engineer/apkpure-skills/skills/apkpure/scripts/apkpure.sh <command>` — shell wrapper fallback
+1. `apkpure <command>` — on PATH via the plugin's `bin/` directory (restart Claude Code after install to apply)
+2. If `apkpure` is not found, invoke the installed binary directly:
+   `bash "$(ls ~/.claude/plugins/cache/apkpure-skills/apkpure/*/bin/apkpure 2>/dev/null | head -1)" <command>`
 
 Available commands:
 - `apkpure search <query>` — Search for apps

@@ -1,8 +1,7 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# Build output — dist/ is committed (ships the prebuilt self-contained CLI with the plugin)
 *.tsbuildinfo
 
 # Package archives

@@ -19,7 +19,7 @@
     }
   },
   "bin": {
-    "apkpure": "dist/cli.js"
+    "apkpure": "dist/cli.cjs"
   },
   "files": [
     "dist"
@@ -30,7 +30,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
-    "cli": "node --enable-source-maps dist/cli.js",
+    "cli": "node dist/cli.cjs",
     "prepublishOnly": "npm run build"
   },
   "engines": {

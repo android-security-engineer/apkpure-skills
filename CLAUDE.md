@@ -12,16 +12,22 @@ The `/apkpure` skill provides: search, info, versions, download, trending, and 2
 
 ## CLI Availability
 
-The `apkpure` CLI may not be in PATH. If `apkpure` command not found, use the direct path:
+When installed as a Claude Code plugin, `apkpure` is on PATH via the plugin's `bin/` directory:
 
 ```bash
-node /home/cc11001100/github/android-security-engineer/apkpure-skills/dist/cli.js <command>
+apkpure <command>
+```
+
+For local development in this repo (CWD is the repo root), run the built CLI directly:
+
+```bash
+node dist/cli.cjs <command>
 ```
 
 Or the shell wrapper:
 
 ```bash
-bash /home/cc11001100/github/android-security-engineer/apkpure-skills/skills/apkpure/scripts/apkpure.sh <command>
+bash skills/apkpure/scripts/apkpure.sh <command>
 ```
 
 ## Build
@@ -29,5 +35,5 @@ bash /home/cc11001100/github/android-security-engineer/apkpure-skills/skills/apk
 If `dist/` is missing, build first:
 
 ```bash
-cd /home/cc11001100/github/android-security-engineer/apkpure-skills && npm install && npm run build
+npm install && npm run build
 ```

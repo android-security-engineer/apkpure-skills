@@ -2,7 +2,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 
-const CLI_PATH = resolve(__dirname, "../dist/cli.js");
+const CLI_PATH = resolve(__dirname, "../dist/cli.cjs");
 
 function runCli(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve) => {

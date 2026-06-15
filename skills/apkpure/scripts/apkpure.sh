@@ -17,6 +17,7 @@
 #   -m, --mode <mode>           api|scraping|auto (default: auto)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# skills/apkpure/scripts/ → up 3 levels to the plugin root (where dist/ lives)
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-exec node "$PROJECT_DIR/dist/cli.js" "$@"
+exec node "$PROJECT_DIR/dist/cli.cjs" "$@"
