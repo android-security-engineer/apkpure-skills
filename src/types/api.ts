@@ -34,11 +34,19 @@ export interface MobileDetailResponse {
     size?: number;
     asset?: {
       url: string;
+      urls?: string[];
       type: string;
+      sha1?: string;
+      file_sha256?: string;
+      size?: number;
+      thread_count?: number;
+      url_seed?: string;
     };
     screenshots?: string[];
     update_date?: string;
     requires_android?: string;
+    native_code?: string[];
+    is_a_p_ks?: boolean;
   };
 }
 

@@ -18,6 +18,13 @@ export interface AppDetail extends AppInfo {
   updateDate?: string;
   requiresAndroid?: string;
   olderVersions?: AppVersion[];
+  /**
+   * CPU ABIs this asset supports. For fileType "apk" this is usually a
+   * universal build covering every listed ABI in one file. For "xapk"/"apks"
+   * it's a split bundle whose zip contains the matching per-ABI native libs —
+   * there's no separate per-architecture download to choose from via this API.
+   */
+  nativeCode?: string[];
 }
 
 export interface AppVersion {
@@ -57,7 +64,7 @@ export interface TrendingApp {
 }
 
 export interface SdkConfig {
-  mode: "api" | "scraping" | "auto";
+  mode: "android" | "web" | "auto" | "api" | "scraping";
   locale?: string;
   timeout?: number;
   proxy?: string;

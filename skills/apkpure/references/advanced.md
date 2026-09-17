@@ -3,28 +3,114 @@
 ## Table of Contents
 
 1. [Architecture](#architecture)
-2. [Proxy Auto-Detection](#proxy-auto-detection)
-3. [Mobile API Protocol](#mobile-api-protocol)
-4. [Web Scraping Selectors](#web-scraping-selectors)
-5. [TypeScript API](#typescript-api)
+2. [Anti-Scraping / Cloudflare Bypass](#anti-scraping--cloudflare-bypass)
+3. [Proxy Auto-Detection](#proxy-auto-detection)
+4. [Mobile API Protocol](#mobile-api-protocol)
+5. [Web Scraping Selectors](#web-scraping-selectors)
+6. [TypeScript API](#typescript-api)
 
 ## Architecture
 
 ```
-ApkPure (SDK entry)
-├── MobileClient     — tapi.pureapk.com/v3 REST API (primary)
+ApkPure (SDK entry, default mode: android)
+├── MobileClient     — tapi.pureapk.com/v3 Android app backend (primary)
 │   ├── GET /search_query_new    — search apps
-│   └── POST /get_app_detail     — app detail (MD5 signed)
-├── ScrapingClient   — apkpure.com HTML parsing (fallback)
+│   └── GET /get_app_detail      — app detail (MD5-signed headers)
+├── ScrapingClient   — apkpure.com HTML parsing (web channel)
 │   ├── search page              — CSS selectors
 │   ├── detail page              — data-* attributes
 │   └── versions page            — ul.ver-wrap > li
 └── Downloader       — streaming download + SHA256 verify
 ```
 
+Mode `android` (default): MobileClient only, throws on failure.
 Mode `auto`: tries MobileClient first, falls back to ScrapingClient on error.
-Mode `api`: MobileClient only, throws on failure.
-Mode `scraping`: ScrapingClient only.
+Mode `web`: ScrapingClient only.
+Legacy aliases still accepted: `api` → `android`, `scraping` → `web`.
+
+`versions` and `trending` have no mobile-API equivalent and always use the web
+channel. iOS: not available — APKPure exposes no iOS store protocol.
+
+## Anti-Scraping / Cloudflare Bypass
+
+apkpure.com's **website** sits behind **Cloudflare**, which fingerprints the TLS
+`ClientHello` (JA3/JA4). Node's built-in TLS stack (OpenSSL) cannot reproduce a
+real Chrome/BoringSSL handshake — no GREASE values, a different extension set and
+order, HTTP/1.1 instead of forced HTTP/2 — so Cloudflare flags it as a bot and
+either resets the connection or serves a "Just a moment…" JS challenge. Adding
+browser-like HTTP headers does **not** help; the block happens at the TLS layer,
+before any header is read.
+
+> The **mobile API** (`tapi.pureapk.com`, the default channel) is protected by
+> Cloudflare **plus** a signed-header protocol (see
+> [Mobile API Protocol](#mobile-api-protocol)). The SDK passes both: browser
+> TLS fingerprint (`curl_cffi`, Chrome 136) pinned to genuine Cloudflare IPs
+> (via Cloudflare DoH, bypassing polluted local DNS) plus full Android
+> device/signature headers. That's why the default `android` mode already
+> works with zero setup and no proxy. The bypass below matters for the web
+> channel (`versions` / `trending` / `-m web`).
+
+### How the bypass works
+
+The web transport (`src/utils/web.ts` + `src/utils/impersonate.ts`) is layered:
+
+1. **TLS impersonation (preferred).** If a real impersonation backend is present
+   on the machine, requests are shelled out to it, producing a byte-perfect
+   Chrome ClientHello that passes Cloudflare's JA3/JA4 check. Two backends are
+   supported, in priority order:
+   - **curl-impersonate** — a patched `curl` linked against BoringSSL. Detected
+     by looking for `curl_chrome131`, `curl_chrome124`, …, `curl-impersonate` on
+     `PATH`. No interpreter startup cost, so it's tried first.
+   - **curl_cffi** — Python bindings around curl-impersonate
+     (`pip install curl_cffi`). Detected by `python3 -c "import curl_cffi"`.
+2. **Node fallback.** If no backend is found, requests use Node `fetch` with a
+   full Chrome header set. This works when the target is **not** in strict-JA3
+   mode — e.g. behind a residential/mobile proxy, or for hosts that don't
+   fingerprint. If Cloudflare blocks it, the caller gets an **actionable error**
+   telling them to install a backend (rather than silently returning junk HTML).
+
+Both paths retry with backoff and run every response through
+`isCloudflareBlock()`, which detects challenge pages (`cf-ray`, `just a moment`,
+`challenge-platform`, `cf_chl_opt`, HTTP 403/429/503) so a challenge shell is
+never mistaken for real content.
+
+### Installing a backend
+
+```bash
+# Recommended — cross-platform, one pip install:
+pip install curl_cffi
+
+# Or the standalone binary (faster, no Python):
+#   https://github.com/lwthiker/curl-impersonate
+```
+
+Nothing else is required — the CLI auto-detects whatever is installed.
+
+### Configuration (env vars)
+
+| Variable | Values | Default | Effect |
+|----------|--------|---------|--------|
+| `APKPURE_IMPERSONATE` | `auto` \| `node` \| `curl_cffi` \| `curl-impersonate` \| `<path-to-binary>` | `auto` | Force a backend. `node` disables impersonation; a path pins a specific binary. |
+| `APKPURE_IMPERSONATE_TARGET` | `chrome`, `chrome131`, `chrome124`, `edge101`, … | `chrome` | Which browser profile to impersonate. |
+
+Backend detection is cached for the process lifetime.
+
+### `doctor` — verify the setup
+
+```bash
+apkpure doctor
+```
+
+Reports three things:
+1. **TLS impersonation backend** — which one was detected (or a warning + install
+   hint if none), and the impersonation target.
+2. **Proxy** — the auto-detected proxy (or `--proxy` override), or direct.
+3. **Live connectivity** — actually fetches `apkpure.com/search?q=whatsapp`
+   through the full transport and reports `OK` / `FAILED` with the reason.
+
+Run it first whenever search/download starts failing — it distinguishes a
+missing-backend problem (fixable with `pip install curl_cffi`) from a
+network/proxy problem.
 
 ## Proxy Auto-Detection
 
@@ -40,11 +126,21 @@ Result is cached for the process lifetime. Use `--proxy` to override.
 
 ## Mobile API Protocol
 
-Base URL: `https://tapi.pureapk.com/v3`
+Base URL: `https://tapi.pureapk.com/v3` (same backend the APKPure Android app uses)
 
 Authentication: custom headers `Ual-Access-*` containing device info, app info, and user auth key.
 
-### Signature (POST requests only)
+Transport requirements (both must hold, otherwise Cloudflare rejects the request):
+
+1. **Browser TLS fingerprint** — requests go out via `curl_cffi` low-level `Curl`
+   with `IMPERSONATE=chrome136` (`src/client/mobile-transport.ts`), not Node's
+   native TLS stack.
+2. **Genuine Cloudflare IP** — `tapi.pureapk.com` is resolved via Cloudflare DoH
+   (`1.1.1.1/dns-query`, `src/utils/resolve.ts`) and pinned with curl `RESOLVE`,
+   bypassing polluted local DNS. Override with `APKPURE_MOBILE_RESOLVE`
+   (comma-separated IPs) if DoH is unreachable in your network.
+
+### Signature (GET requests carry the signed body too)
 
 ```
 body = JSON.stringify({ package_name: "com.whatsapp", hl: "en-US" })
@@ -84,11 +180,18 @@ Response structure:
 ### Detail endpoint
 
 ```
-POST /get_app_detail
-Body: { "package_name": "com.whatsapp", "hl": "en-US" }
+GET /get_app_detail?package_name=com.whatsapp&hl=en-US
+(signed Ual-Access-* headers, same signature scheme as above)
 ```
 
-Response: `app_detail` object with title, version, description, asset download URL, screenshots.
+Response: `app_detail` object with title, version, description, `asset`
+(download URL + sha1 + size + type), `native_code` (supported CPU ABIs, e.g.
+`["arm64-v8a","armeabi-v7a","x86","x86_64"]`), screenshots.
+
+Each version ships **one** file: a universal APK covering every ABI in
+`native_code`, or an XAPK bundle containing the matching native libraries —
+there is no per-architecture download to choose from (`asset.urls` carries the
+same single link).
 
 ## Web Scraping Selectors
 
@@ -152,6 +255,8 @@ interface AppDetail extends AppInfo {
   updateDate?: string;
   requiresAndroid?: string;
   olderVersions?: AppVersion[];
+  /** CPU ABIs the file supports (universal APK covers all; XAPK bundles them) */
+  nativeCode?: string[];
 }
 
 interface AppVersion {

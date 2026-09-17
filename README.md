@@ -1,6 +1,6 @@
 # apkpure
 
-CLI & SDK to search, inspect, and download Android APKs/XAPKs from [APKPure](https://apkpure.com) — zero config, proxy auto-detected.
+CLI & SDK to search, inspect, and download Android APKs/XAPKs from [APKPure](https://apkpure.com) — zero config, no proxy needed.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=20](https://img.shields.io/node/v/apkpure.svg)](https://nodejs.org/)
@@ -9,7 +9,8 @@ CLI & SDK to search, inspect, and download Android APKs/XAPKs from [APKPure](htt
 apkpure search telegram
 ```
 
-No install, no setup. Works behind GFW out of the box.
+No install, no setup, no VPN. The default Android mobile-API path talks to
+APKPure's app backend directly — verified working over a plain connection.
 
 ---
 
@@ -35,7 +36,7 @@ cd apkpure-skills
 npm install && npm run build
 
 # Use the CLI directly
-node dist/cli.js search telegram
+node dist/cli.cjs search telegram
 ```
 
 > **Note:** The npm package name `apkpure` is already taken by another project. `npm install -g apkpure` and `npx apkpure` will install a different, unrelated package. Use the Claude Code skill installation or build from source instead.
@@ -54,27 +55,27 @@ Or use the CLI directly if building from source:
 
 ```bash
 # Search
-node dist/cli.js search "whatsapp"
-node dist/cli.js search "微信" --page 2
+node dist/cli.cjs search "whatsapp"
+node dist/cli.cjs search "微信" --page 2
 
-# Get app details
-node dist/cli.js info com.whatsapp
+# Get app details (includes supported CPU architectures)
+node dist/cli.cjs info com.whatsapp
 
 # List all versions
-node dist/cli.js versions org.telegram.messenger
+node dist/cli.cjs versions org.telegram.messenger
 
 # Download latest APK/XAPK
-node dist/cli.js download com.whatsapp
+node dist/cli.cjs download com.whatsapp
 
 # Download a specific version
-node dist/cli.js download org.telegram.messenger -v 10.5.1
+node dist/cli.cjs download org.telegram.messenger -v 10.5.1
 
 # Download to a custom directory
-node dist/cli.js download com.whatsapp -o ~/Downloads
+node dist/cli.cjs download com.whatsapp -o ~/Downloads
 
 # Output as JSON (for scripting)
-node dist/cli.js search telegram --json
-node dist/cli.js info com.whatsapp --json
+node dist/cli.cjs search telegram --json
+node dist/cli.cjs info com.whatsapp --json
 ```
 
 ---
@@ -85,7 +86,7 @@ node dist/cli.js info com.whatsapp --json
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-m, --mode <mode>` | API mode: `api`, `scraping`, or `auto` | `auto` |
+| `-m, --mode <mode>` | Data source: `android` (default), `web`, or `auto` (Android first, web fallback). Legacy `api`/`scraping` aliases still work | `android` |
 | `-p, --proxy <url>` | HTTP proxy URL | auto-detected |
 | `-j, --json` | Output raw JSON | — |
 
@@ -142,6 +143,73 @@ List trending apps.
 ```bash
 apkpure trending
 ```
+
+#### `doctor`
+
+Diagnose the anti-scraping setup: TLS-impersonation backend, proxy, and a live
+connectivity test against apkpure.com. Run it first when search/download fails.
+
+```bash
+apkpure doctor
+```
+
+---
+
+## Data Sources: Android (default) · Web · iOS (not available)
+
+All commands default to the **Android mobile API** (`tapi.pureapk.com/v3`,
+same backend the APKPure Android app uses) — no login, no proxy needed:
+
+- `search`, `info`, `download` work out of the box, including a supported-CPU
+  architecture list (`Architectures: arm64-v8a, armeabi-v7a, …`) on `info`.
+- Each version ships **one** file: either a universal APK covering every listed
+  architecture, or an XAPK bundle containing the matching native libraries —
+  there is no separate per-architecture download to choose from.
+- `versions` and `trending` have no mobile-API equivalent and always use the
+  website channel.
+
+Use `-m web` to force the website channel, or `-m auto` for Android-first with
+web fallback. The website (`apkpure.com`) sits behind Cloudflare — when it is
+unreachable in your network, Android-default commands still work; only
+`versions`/`trending`/`-m web` are affected. Install `pip install curl_cffi`
+for the best website-channel reliability.
+
+**iOS:** not available — APKPure has no iOS store protocol to implement against.
+
+## Anti-Scraping / Cloudflare Bypass
+
+APKPure has two front doors with different protection:
+
+- **Android mobile API** (`tapi.pureapk.com`, the default) is protected by
+  Cloudflare **plus** a signed-header protocol (`Ual-Access-*`, MD5 of
+  body + timestamp + secret + nonce). The SDK passes both: requests go out
+  with a real browser TLS fingerprint (`curl_cffi`, Chrome 136) pinned to the
+  genuine Cloudflare IPs (resolved via Cloudflare DoH to bypass polluted local
+  DNS), with full Android device/signature headers. No proxy needed.
+- **Website** (`apkpure.com`, used by `versions`/`trending`/`-m web`) is behind
+  **Cloudflare** TLS-fingerprinting (JA3/JA4) — plain Node/OpenSSL requests are
+  blocked regardless of the HTTP headers they send. The tool solves this in
+  layers:
+
+- **Search & info** default to the mobile API (`tapi.pureapk.com`), which the
+  SDK reaches with browser-TLS impersonation + genuine-IP resolution (see
+  above), so they work with zero setup.
+- **Web-scraping fallback & downloads** use a real browser TLS fingerprint via an
+  external impersonation backend when one is installed, and fall back to Node
+  (with a full Chrome header set) otherwise. If Cloudflare blocks the fallback,
+  you get an actionable error instead of silent junk HTML.
+
+Install **one** backend for maximum reliability — it's auto-detected, no config:
+
+```bash
+pip install curl_cffi          # recommended, cross-platform
+# or curl-impersonate: https://github.com/lwthiker/curl-impersonate
+```
+
+Verify with `apkpure doctor`. Optional overrides: `APKPURE_IMPERSONATE`
+(`auto`|`node`|`curl_cffi`|`curl-impersonate`|`<path>`) and
+`APKPURE_IMPERSONATE_TARGET` (`chrome`, `chrome131`, …). Full details in
+[skills/apkpure/references/advanced.md](skills/apkpure/references/advanced.md#anti-scraping--cloudflare-bypass).
 
 ---
 
@@ -259,7 +327,7 @@ Use as a Node.js library (requires building from source):
 ```typescript
 import { ApkPure } from "apkpure";
 
-const sdk = new ApkPure({ mode: "auto" });
+const sdk = new ApkPure({ mode: "android" }); // or "web", or "auto" (Android first, web fallback)
 
 // Search
 const { apps } = await sdk.search("telegram");
@@ -327,6 +395,8 @@ interface AppDetail extends AppInfo {
   updateDate?: string;
   requiresAndroid?: string;
   olderVersions?: AppVersion[];
+  /** CPU ABIs the file supports (universal APK covers all; XAPK bundles them) */
+  nativeCode?: string[];
 }
 
 interface AppVersion {

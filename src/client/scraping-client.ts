@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { fetchHtml, downloadFile } from "../utils/http.js";
+import { webFetchHtml } from "../utils/web.js";
 import { WEB_BASE_URL, DOWNLOAD_BASE_URL } from "../config.js";
 import type {
   AppInfo,
@@ -19,7 +19,7 @@ export class ScrapingClient {
   }
 
   async search(query: string): Promise<SearchResult> {
-    const html = await fetchHtml(
+    const html = await webFetchHtml(
       `${WEB_BASE_URL}/search?q=${encodeURIComponent(query)}`,
       { timeout: this.timeout, proxy: this.proxy }
     );
@@ -80,7 +80,7 @@ export class ScrapingClient {
   }
 
   async getInfo(packageName: string): Promise<AppDetail | null> {
-    const html = await fetchHtml(
+    const html = await webFetchHtml(
       `${WEB_BASE_URL}/${packageName}`,
       { timeout: this.timeout, proxy: this.proxy }
     );
@@ -126,7 +126,7 @@ export class ScrapingClient {
   }
 
   async getVersions(packageName: string): Promise<AppVersion[]> {
-    const html = await fetchHtml(
+    const html = await webFetchHtml(
       `${WEB_BASE_URL}/${packageName}/versions`,
       { timeout: this.timeout, proxy: this.proxy }
     );
@@ -165,7 +165,7 @@ export class ScrapingClient {
   }
 
   async trending(): Promise<TrendingApp[]> {
-    const html = await fetchHtml(`${WEB_BASE_URL}/game-24h`, {
+    const html = await webFetchHtml(`${WEB_BASE_URL}/game-24h`, {
       timeout: this.timeout,
       proxy: this.proxy,
     });

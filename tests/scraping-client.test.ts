@@ -1,12 +1,11 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../src/utils/http.js", () => ({
-  fetchHtml: vi.fn(),
-  downloadFile: vi.fn(),
+vi.mock("../src/utils/web.js", () => ({
+  webFetchHtml: vi.fn(),
 }));
 
 import { ScrapingClient } from "../src/client/scraping-client.js";
-import { fetchHtml } from "../src/utils/http.js";
+import { webFetchHtml as fetchHtml } from "../src/utils/web.js";
 
 const INFO_HTML = `
 <html>

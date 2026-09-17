@@ -38,6 +38,7 @@ const mockGetDetail = vi.fn().mockResolvedValue({
     screenshots: ["https://ss1.png"],
     update_date: "2024-01-01",
     requires_android: "6.0+",
+    native_code: ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"],
   },
 });
 
@@ -152,6 +153,7 @@ describe("ApkPure", () => {
         screenshots: ["https://ss1.png"],
         update_date: "2024-01-01",
         requires_android: "6.0+",
+        native_code: ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"],
       },
     });
 
@@ -411,6 +413,7 @@ describe("ApkPure", () => {
       expect(detail?.screenshots).toEqual(["https://ss1.png"]);
       expect(detail?.updateDate).toBe("2024-01-01");
       expect(detail?.requiresAndroid).toBe("6.0+");
+      expect(detail?.nativeCode).toEqual(["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]);
     });
 
     test("in api mode: throws on failure", async () => {

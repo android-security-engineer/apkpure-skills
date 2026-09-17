@@ -6,7 +6,7 @@ import type { MobileConfig } from "./types/api.js";
 export const DEFAULT_DOWNLOAD_DIR = join(homedir(), ".apkpure", "downloads");
 
 export const DEFAULT_CONFIG: Required<SdkConfig> = {
-  mode: "auto",
+  mode: "android",
   locale: "en-US",
   timeout: 30000,
   proxy: "",

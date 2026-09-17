@@ -4,27 +4,36 @@ vi.mock("node:fs", () => ({
   mkdirSync: vi.fn(),
   renameSync: vi.fn(),
   statSync: vi.fn(),
+  existsSync: vi.fn().mockReturnValue(false),
+  unlinkSync: vi.fn(),
 }));
 
 vi.mock("../src/utils/http.js", () => ({
   downloadFile: vi.fn().mockResolvedValue(1024000),
 }));
 
+vi.mock("../src/utils/web.js", () => ({
+  webDownload: vi.fn().mockResolvedValue(1024000),
+}));
+
 vi.mock("../src/utils/crypto.js", () => ({
   sha256File: vi.fn().mockResolvedValue("abc123def456789"),
 }));
 
-import { mkdirSync, renameSync, statSync } from "node:fs";
+import { mkdirSync, renameSync, statSync, existsSync, unlinkSync } from "node:fs";
 import { downloadFile } from "../src/utils/http.js";
+import { webDownload } from "../src/utils/web.js";
 import { sha256File } from "../src/utils/crypto.js";
 import { downloadApk } from "../src/core/downloader.js";
 import type { DownloadOptions } from "../src/types/index.js";
 
 const mockedDownloadFile = vi.mocked(downloadFile);
+const mockedWebDownload = vi.mocked(webDownload);
 const mockedSha256File = vi.mocked(sha256File);
 const mockedMkdirSync = vi.mocked(mkdirSync);
 const mockedRenameSync = vi.mocked(renameSync);
 const mockedStatSync = vi.mocked(statSync);
+const mockedExistsSync = vi.mocked(existsSync);
 
 describe("downloadApk", () => {
   const defaultOptions: DownloadOptions = {
@@ -34,6 +43,7 @@ describe("downloadApk", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedStatSync.mockReturnValue({ size: 1024000 } as any);
+    mockedExistsSync.mockReturnValue(false);
   });
 
   test("successful download with default fileName", async () => {
@@ -185,7 +195,6 @@ describe("downloadApk", () => {
       defaultOptions
     );
 
-    // mkdirSync should be called before downloadFile
     const mkdirCall = mockedMkdirSync.mock.invocationCallOrder[0];
     const downloadCall = mockedDownloadFile.mock.invocationCallOrder[0];
     expect(mkdirCall).toBeLessThan(downloadCall);
@@ -200,7 +209,6 @@ describe("downloadApk", () => {
       defaultOptions
     );
 
-    // renameSync should be called after downloadFile
     const downloadCall = mockedDownloadFile.mock.invocationCallOrder[0];
     const renameCall = mockedRenameSync.mock.invocationCallOrder[0];
     const shaCall = mockedSha256File.mock.invocationCallOrder[0];
@@ -252,5 +260,42 @@ describe("downloadApk", () => {
     ];
     expect(options.headers["User-Agent"]).toContain("Dalvik/2.1.0");
     expect(options.headers["Accept"]).toBe("*/*");
+  });
+
+  test("falls back to webDownload when plain downloadFile fails", async () => {
+    mockedDownloadFile.mockRejectedValueOnce(new Error("connection refused"));
+    mockedExistsSync.mockReturnValueOnce(false);
+
+    await downloadApk(
+      "https://d.apkpure.com/b/APK/com.test.app?versionCode=100",
+      "com.test.app",
+      "1.0.0",
+      "apk",
+      defaultOptions
+    );
+
+    expect(mockedDownloadFile).toHaveBeenCalledTimes(1);
+    expect(mockedWebDownload).toHaveBeenCalledTimes(1);
+    const [url, , opts] = mockedWebDownload.mock.calls[0] as [string, string, any];
+    expect(url).toBe("https://d.apkpure.com/b/APK/com.test.app?versionCode=100");
+    expect(opts.headers["User-Agent"]).toContain("Dalvik/2.1.0");
+  });
+
+  test("cleans up partial file before fallback when it exists", async () => {
+    mockedDownloadFile.mockRejectedValueOnce(new Error("network error"));
+    mockedExistsSync.mockReturnValueOnce(true);
+
+    await downloadApk(
+      "https://d.apkpure.com/b/APK/com.test.app?versionCode=100",
+      "com.test.app",
+      "1.0.0",
+      "apk",
+      defaultOptions
+    );
+
+    expect(vi.mocked(unlinkSync)).toHaveBeenCalledWith(
+      "/tmp/apks/com.test.app-1.0.0.apk.part"
+    );
+    expect(mockedWebDownload).toHaveBeenCalledTimes(1);
   });
 });

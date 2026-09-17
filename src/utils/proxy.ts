@@ -81,20 +81,24 @@ function checkPortOpen(port: number, host = "127.0.0.1"): Promise<boolean> {
 }
 
 async function testProxyWorks(proxyUrl: string): Promise<boolean> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     const { fetch, ProxyAgent } = await import("undici");
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT);
+    // NOTE: always clear this in `finally` — a leaked abort timer keeps the
+    // event loop (and the process) alive after detection finishes.
+    timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT);
 
     const resp = await fetch(`https://${PROBE_HOST}`, {
       method: "HEAD",
       dispatcher: new ProxyAgent(proxyUrl),
       signal: controller.signal,
     });
-    clearTimeout(timeout);
     return resp.status > 0;
   } catch {
     return false;
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }
 
@@ -132,10 +136,17 @@ export async function detectProxy(): Promise<ProxySource | null> {
     }
   }
 
-  // 3. Brute-force scan common proxy ports
-  for (const { port, name } of COMMON_PROXY_PORTS) {
-    const isOpen = await checkPortOpen(port);
-    if (!isOpen) continue;
+  // 3. Brute-force scan common proxy ports. Probe openness concurrently — a
+  //    sequential scan waits up to PROBE_TIMEOUT per unresponsive port. On a real
+  //    machine closed ports RST instantly so this is already fast; concurrency
+  //    just bounds the pathological case. Validation then runs in priority order
+  //    so the first working port wins, exactly as before.
+  const openness = await Promise.all(
+    COMMON_PROXY_PORTS.map(({ port }) => checkPortOpen(port))
+  );
+  for (let i = 0; i < COMMON_PROXY_PORTS.length; i++) {
+    if (!openness[i]) continue;
+    const { port, name } = COMMON_PROXY_PORTS[i];
 
     const proxyUrl = `http://127.0.0.1:${port}`;
     const works = await testProxyWorks(proxyUrl);

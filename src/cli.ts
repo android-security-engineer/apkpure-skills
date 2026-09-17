@@ -1,10 +1,21 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { ApkPure } from "./core/apkpure.js";
-import { DEFAULT_DOWNLOAD_DIR } from "./config.js";
+import { DEFAULT_DOWNLOAD_DIR, WEB_BASE_URL } from "./config.js";
 import { runWorkflow, listWorkflows } from "./workflows.js";
+import { detectBackend } from "./utils/impersonate.js";
+import { webFetchHtml } from "./utils/web.js";
+import { detectProxy } from "./utils/proxy.js";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { startServer } from "./server.js";
+
+// Print clean, actionable error messages instead of raw stack traces.
+process.on("unhandledRejection", (err) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`Error: ${msg}`);
+  process.exit(1);
+});
 
 const program = new Command();
 
@@ -17,12 +28,12 @@ program
   .command("search")
   .description("Search for apps on APKPure")
   .argument("<query>", "Search query")
-  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
+  .option("-m, --mode <mode>", "API mode: android|web|auto (default: android)", "android")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("--page <num>", "Page number (default: 1)", "1")
   .option("-j, --json", "Output raw JSON instead of table")
   .action(async (query: string, opts: { mode: string; proxy?: string; page?: string; json?: boolean }) => {
-    const client = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
+    const client = new ApkPure({ mode: opts.mode as "android" | "web" | "auto" | "api" | "scraping", proxy: opts.proxy });
     const page = parseInt(opts.page ?? "1", 10);
     const result = await client.search(query, page);
 
@@ -52,11 +63,11 @@ program
   .command("info")
   .description("Get detailed info for an app")
   .argument("<package>", "Android package name (e.g. com.whatsapp)")
-  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
+  .option("-m, --mode <mode>", "API mode: android|web|auto (default: android)", "android")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("-j, --json", "Output raw JSON instead of formatted text")
   .action(async (pkg: string, opts: { mode: string; proxy?: string; json?: boolean }) => {
-    const client = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
+    const client = new ApkPure({ mode: opts.mode as "android" | "web" | "auto" | "api" | "scraping", proxy: opts.proxy });
     const detail = await client.getInfo(pkg);
     if (!detail) {
       console.error(opts.json ? JSON.stringify({ error: "App not found" }) : `App not found: ${pkg}`);
@@ -78,6 +89,7 @@ program
     if (detail.updateDate) console.log(`  Updated:      ${detail.updateDate}`);
     if (detail.requiresAndroid) console.log(`  Requires:     Android ${detail.requiresAndroid}`);
     if (detail.downloadUrl) console.log(`  Download:     ${detail.fileType.toUpperCase()} available`);
+    if (detail.nativeCode?.length) console.log(`  Architectures: ${detail.nativeCode.join(", ")}`);
     if (detail.description) {
       const desc = detail.description.length > 200
         ? detail.description.slice(0, 200) + "..."
@@ -92,7 +104,7 @@ program
   .argument("<package>", "Android package name")
   .option("-o, --output <dir>", "Output directory", DEFAULT_DOWNLOAD_DIR)
   .option("-v, --version <version>", "Specific version to download")
-  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
+  .option("-m, --mode <mode>", "API mode: android|web|auto (default: android)", "android")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("-j, --json", "Output raw JSON instead of progress info")
   .action(
@@ -101,7 +113,7 @@ program
       opts: { output: string; version?: string; mode: string; proxy?: string; json?: boolean }
     ) => {
       mkdirSync(opts.output, { recursive: true });
-      const sdk = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
+      const sdk = new ApkPure({ mode: opts.mode as "android" | "web" | "auto" | "api" | "scraping", proxy: opts.proxy });
 
       if (!opts.json) {
         const detail = await sdk.getInfo(pkg);
@@ -149,11 +161,11 @@ program
 program
   .command("trending")
   .description("List trending games (24h)")
-  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
+  .option("-m, --mode <mode>", "API mode: android|web|auto (default: android)", "android")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("-j, --json", "Output raw JSON instead of list")
   .action(async (opts: { mode: string; proxy?: string; json?: boolean }) => {
-    const sdk = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
+    const sdk = new ApkPure({ mode: opts.mode as "android" | "web" | "auto" | "api" | "scraping", proxy: opts.proxy });
     const apps = await sdk.trending();
 
     if (opts.json) {
@@ -178,11 +190,11 @@ program
   .command("versions")
   .description("List all available versions of an app")
   .argument("<package>", "Android package name")
-  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
+  .option("-m, --mode <mode>", "API mode: android|web|auto (default: android)", "android")
   .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
   .option("-j, --json", "Output raw JSON instead of table")
   .action(async (pkg: string, opts: { mode: string; proxy?: string; json?: boolean }) => {
-    const sdk = new ApkPure({ mode: opts.mode as "api" | "scraping" | "auto", proxy: opts.proxy });
+    const sdk = new ApkPure({ mode: opts.mode as "android" | "web" | "auto" | "api" | "scraping", proxy: opts.proxy });
     const versions = await sdk.getVersions(pkg);
 
     if (opts.json) {
@@ -217,7 +229,7 @@ program
   .option("-v, --version <version>", "Version string (for download-version workflow)")
   .option("--current-version <ver>", "Current version (for check-update workflow)")
   .option("-o, --output <dir>", "Download directory", DEFAULT_DOWNLOAD_DIR)
-  .option("-m, --mode <mode>", "API mode: api|scraping|auto", "auto")
+  .option("-m, --mode <mode>", "API mode: android|web|auto (default: android)", "android")
   .option("--proxy <proxy>", "HTTP proxy URL")
   .option("-j, --json", "Output raw JSON")
   .action(async (name: string, opts: { query?: string; package?: string; packages?: string; version?: string; currentVersion?: string; output: string; mode: string; proxy?: string; json?: boolean }) => {
@@ -229,7 +241,7 @@ program
     if (opts.currentVersion) params.currentVersion = opts.currentVersion;
 
     const result = await runWorkflow(name, params, {
-      mode: opts.mode as "api" | "scraping" | "auto",
+      mode: opts.mode as "android" | "web" | "auto" | "api" | "scraping",
       proxy: opts.proxy,
       outputDir: resolve(opts.output),
     });
@@ -443,6 +455,61 @@ program
   });
 
 program
+  .command("doctor")
+  .description("Diagnose anti-scraping setup: TLS-impersonation backend, proxy, and connectivity")
+  .option("-p, --proxy <proxy>", "HTTP proxy URL (auto-detected if not specified)")
+  .action(async (opts: { proxy?: string }) => {
+    console.log("APKPure doctor — anti-scraping diagnostics\n");
+
+    // 1. Impersonation backend
+    const backend = await detectBackend();
+    const ok = backend.kind !== "node";
+    console.log(`TLS impersonation backend: ${backend.kind}`);
+    console.log(`  ${backend.detail}`);
+    console.log(`  Target: ${process.env.APKPURE_IMPERSONATE_TARGET || "chrome"}`);
+    if (!ok) {
+      console.log(
+        "  ⚠  Without a backend, apkpure.com web scraping may be blocked by Cloudflare.\n" +
+          "     Install one:  pip install curl_cffi   (or curl-impersonate)"
+      );
+    } else {
+      console.log("  ✓  Real browser TLS fingerprint available — Cloudflare bypass enabled.");
+    }
+    console.log();
+
+    // 2. Proxy
+    let proxy = opts.proxy ?? "";
+    if (!proxy) {
+      const detected = await detectProxy();
+      if (detected) {
+        proxy = detected.url;
+        console.log(`Proxy: ${detected.url}  (${detected.source})`);
+      } else {
+        console.log("Proxy: none detected (direct connection)");
+      }
+    } else {
+      console.log(`Proxy: ${proxy}  (from --proxy)`);
+    }
+    console.log();
+
+    // 3. Live connectivity to apkpure.com
+    process.stdout.write("Testing apkpure.com reachability ... ");
+    try {
+      // Diagnostic: fail fast, no retries — we just want a yes/no reachability read.
+      const html = await webFetchHtml(`${WEB_BASE_URL}/search?q=whatsapp`, {
+        proxy,
+        timeout: 15000,
+        retries: 0,
+      });
+      const good = /search-res|div class="first"|APKPure/i.test(html);
+      console.log(good ? "OK ✓" : `reachable but unexpected content (${html.length} bytes)`);
+    } catch (err) {
+      console.log("FAILED ✗");
+      console.log(`  ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
+
+program
   .command("workflows")
   .description("List available workflows")
   .action(() => {
@@ -455,4 +522,31 @@ program
     }
   });
 
-program.parse();
+
+program
+  .command("serve")
+  .description("Start HTTP API server for GUI control mode")
+  .option("--port <port>", "Port to listen on (default: 13456)", "13456")
+  .action(async (opts: { port: string }) => {
+    const port = parseInt(opts.port, 10);
+    await startServer(port);
+    // Block until SIGINT/SIGTERM — parseAsync resolves after this promise,
+    // then process.exit(0) fires. A never-resolving promise keeps the server alive.
+    await new Promise<void>((resolve) => {
+      process.once("SIGINT", resolve);
+      process.once("SIGTERM", resolve);
+    });
+  });
+
+// Run and exit explicitly. Network probes (undici ProxyAgent keep-alive sockets,
+// port-scan connections) can otherwise keep the event loop alive after the
+// command finishes, leaving the CLI hanging. parseAsync + process.exit is the
+// standard one-shot-CLI pattern and guarantees a prompt exit.
+program.parseAsync().then(
+  () => process.exit(0),
+  (err) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Error: ${msg}`);
+    process.exit(1);
+  }
+);

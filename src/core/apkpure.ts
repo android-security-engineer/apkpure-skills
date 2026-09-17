@@ -14,6 +14,27 @@ import type {
 } from "../types/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
 
+type ResolvedMode = "android" | "web" | "auto";
+
+/** Map legacy mode aliases ("api"→"android", "scraping"→"web") to canonical ones. */
+function normalizeMode(
+  mode: "android" | "web" | "auto" | "api" | "scraping"
+): ResolvedMode {
+  if (mode === "api") return "android";
+  if (mode === "scraping") return "web";
+  return mode;
+}
+
+type HasMode = { mode: "android" | "web" | "auto" | "api" | "scraping" };
+
+function useWeb(config: HasMode): boolean {
+  return config.mode === "web" || config.mode === "scraping";
+}
+
+function useFallback(config: HasMode): boolean {
+  return config.mode === "auto";
+}
+
 export class ApkPure {
   private config: Required<SdkConfig>;
   private mobile: MobileClient;
@@ -21,7 +42,11 @@ export class ApkPure {
   private _initPromise: Promise<void>;
 
   constructor(config?: Partial<SdkConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    // Normalize legacy aliases: "api" (mobile API) -> "android",
+    // "scraping" (website) -> "web". "auto" keeps the old behavior of
+    // trying Android first and falling back to web.
+    const mode = normalizeMode(config?.mode ?? DEFAULT_CONFIG.mode);
+    this.config = { ...DEFAULT_CONFIG, ...config, mode };
     this._initPromise = this._init(config);
     this.mobile = new MobileClient({ ...config, proxy: this.config.proxy });
     this.scraper = new ScrapingClient(this.config.timeout, this.config.proxy);
@@ -44,7 +69,7 @@ export class ApkPure {
 
   async search(query: string, page = 1): Promise<SearchResult> {
     await this.ensureReady();
-    if (this.config.mode === "scraping") {
+    if (useWeb(this.config)) {
       return this.scraper.search(query);
     }
     try {
@@ -70,7 +95,7 @@ export class ApkPure {
       }
       return { apps, page };
     } catch {
-      if (this.config.mode === "auto") {
+      if (useFallback(this.config)) {
         return this.scraper.search(query);
       }
       throw new Error(`Search failed for "${query}"`);
@@ -79,7 +104,7 @@ export class ApkPure {
 
   async getInfo(packageName: string): Promise<AppDetail | null> {
     await this.ensureReady();
-    if (this.config.mode === "scraping") {
+    if (useWeb(this.config)) {
       return this.scraper.getInfo(packageName);
     }
     try {
@@ -102,9 +127,10 @@ export class ApkPure {
         fileType:
           (d.asset?.type?.toLowerCase() as "apk" | "xapk" | "apks") ?? "apk",
         screenshots: d.screenshots,
+        nativeCode: d.native_code,
       };
     } catch {
-      if (this.config.mode === "auto") {
+      if (useFallback(this.config)) {
         return this.scraper.getInfo(packageName);
       }
       throw new Error(`Get info failed for "${packageName}"`);

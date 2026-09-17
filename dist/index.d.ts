@@ -17,6 +17,13 @@ interface AppDetail extends AppInfo {
     updateDate?: string;
     requiresAndroid?: string;
     olderVersions?: AppVersion[];
+    /**
+     * CPU ABIs this asset supports. For fileType "apk" this is usually a
+     * universal build covering every listed ABI in one file. For "xapk"/"apks"
+     * it's a split bundle whose zip contains the matching per-ABI native libs —
+     * there's no separate per-architecture download to choose from via this API.
+     */
+    nativeCode?: string[];
 }
 interface AppVersion {
     version: string;
@@ -50,7 +57,7 @@ interface TrendingApp {
     detailUrl: string;
 }
 interface SdkConfig {
-    mode: "api" | "scraping" | "auto";
+    mode: "android" | "web" | "auto" | "api" | "scraping";
     locale?: string;
     timeout?: number;
     proxy?: string;
@@ -78,6 +85,27 @@ interface WorkflowResult {
     error?: string;
 }
 
+interface ServerEvent {
+    type: "connected" | "state:updated" | "download:progress" | "action:start" | "action:complete" | "action:error";
+    payload?: unknown;
+}
+declare class ApkPureServer {
+    private port;
+    private sseClients;
+    private state;
+    constructor(port?: number);
+    private broadcast;
+    private patchState;
+    private cors;
+    private json;
+    private readBody;
+    private handleAction;
+    private handleEvents;
+    private serveGui;
+    start(): Promise<void>;
+}
+declare function startServer(port?: number): Promise<void>;
+
 declare class ApkPure {
     private config;
     private mobile;
@@ -99,7 +127,7 @@ interface SkillRequest {
     package?: string;
     outputDir?: string;
     version?: string;
-    mode?: "api" | "scraping" | "auto";
+    mode?: "android" | "web" | "auto" | "api" | "scraping";
     proxy?: string;
     workflow?: string;
     params?: Record<string, unknown>;
@@ -109,14 +137,17 @@ interface SkillResponse {
     data?: unknown;
     error?: string;
 }
-declare function handleSkillRequest(req: SkillRequest): Promise<SkillResponse>;
+interface SkillCallbacks {
+    onProgress?: (downloaded: number, total: number) => void;
+}
+declare function handleSkillRequest(req: SkillRequest, callbacks?: SkillCallbacks): Promise<SkillResponse>;
 
 type StepContext = Record<string, unknown>;
 declare function runWorkflow(workflowName: string, params: StepContext, options?: {
-    mode?: "api" | "scraping" | "auto";
+    mode?: "android" | "web" | "auto" | "api" | "scraping";
     proxy?: string;
     outputDir?: string;
 }): Promise<WorkflowResult>;
 declare function listWorkflows(): WorkflowDefinition[];
 
-export { ApkPure, type AppDetail, type AppInfo, type AppVersion, type DownloadOptions, type DownloadResult, type SdkConfig, type SearchResult, type SkillRequest, type SkillResponse, type TrendingApp, type WorkflowDefinition, type WorkflowResult, type WorkflowStep, handleSkillRequest, listWorkflows, runWorkflow };
+export { ApkPure, ApkPureServer, type AppDetail, type AppInfo, type AppVersion, type DownloadOptions, type DownloadResult, type SdkConfig, type SearchResult, type ServerEvent, type SkillCallbacks, type SkillRequest, type SkillResponse, type TrendingApp, type WorkflowDefinition, type WorkflowResult, type WorkflowStep, handleSkillRequest, listWorkflows, runWorkflow, startServer };

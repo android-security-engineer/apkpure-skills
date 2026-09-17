@@ -1,7 +1,6 @@
 import { ApkPure } from "./core/apkpure.js";
 import { DEFAULT_DOWNLOAD_DIR } from "./config.js";
 import { runWorkflow, listWorkflows } from "./workflows.js";
-import type { SdkConfig } from "./types/index.js";
 
 export interface SkillRequest {
   action: "search" | "info" | "download" | "trending" | "versions" | "workflow" | "list-workflows";
@@ -9,7 +8,7 @@ export interface SkillRequest {
   package?: string;
   outputDir?: string;
   version?: string;
-  mode?: "api" | "scraping" | "auto";
+  mode?: "android" | "web" | "auto" | "api" | "scraping";
   proxy?: string;
   workflow?: string;
   params?: Record<string, unknown>;
@@ -21,15 +20,20 @@ export interface SkillResponse {
   error?: string;
 }
 
+export interface SkillCallbacks {
+  onProgress?: (downloaded: number, total: number) => void;
+}
+
 export async function handleSkillRequest(
-  req: SkillRequest
+  req: SkillRequest,
+  callbacks: SkillCallbacks = {}
 ): Promise<SkillResponse> {
   try {
     switch (req.action) {
       case "workflow": {
         if (!req.workflow) return { success: false, error: "workflow name is required" };
         const result = await runWorkflow(req.workflow, req.params ?? {}, {
-          mode: req.mode ?? "auto",
+          mode: req.mode ?? "android",
           proxy: req.proxy,
           outputDir: req.outputDir,
         });
@@ -41,7 +45,7 @@ export async function handleSkillRequest(
       }
       default: {
         const sdk = new ApkPure({
-          mode: req.mode ?? "auto",
+          mode: req.mode ?? "android",
           proxy: req.proxy,
         });
 
@@ -52,19 +56,18 @@ export async function handleSkillRequest(
             return { success: true, data: result };
           }
           case "info": {
-            if (!req.package)
-              throw new Error("package is required for info");
+            if (!req.package) throw new Error("package is required for info");
             const detail = await sdk.getInfo(req.package);
             if (!detail) throw new Error(`App not found: ${req.package}`);
             return { success: true, data: detail };
           }
           case "download": {
-            if (!req.package)
-              throw new Error("package is required for download");
+            if (!req.package) throw new Error("package is required for download");
             if (!req.outputDir) req.outputDir = DEFAULT_DOWNLOAD_DIR;
             const result = await sdk.download(req.package, {
               outputDir: req.outputDir,
               version: req.version,
+              onProgress: callbacks.onProgress,
             });
             return { success: true, data: result };
           }
@@ -73,23 +76,16 @@ export async function handleSkillRequest(
             return { success: true, data: apps };
           }
           case "versions": {
-            if (!req.package)
-              throw new Error("package is required for versions");
+            if (!req.package) throw new Error("package is required for versions");
             const versions = await sdk.getVersions(req.package);
             return { success: true, data: versions };
           }
           default:
-            return {
-              success: false,
-              error: `Unknown action: ${req.action}`,
-            };
+            return { success: false, error: `Unknown action: ${req.action}` };
         }
       }
     }
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 }

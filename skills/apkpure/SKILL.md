@@ -7,6 +7,13 @@ description: "Search, get info, list versions, and download Android APK files fr
 
 Complete workflow for finding and downloading Android APK files.
 
+Default data source is the **Android mobile API** (same backend the APKPure
+Android app uses): `search`, `info`, and `download` work with no login and no
+proxy. `info` also reports supported CPU architectures; each version ships one
+file (universal APK or XAPK bundle), so there is no per-architecture choice to
+make. `versions` and `trending` use the website channel (Cloudflare-protected;
+see below).
+
 ## Install
 
 ```bash
@@ -49,7 +56,7 @@ Use the package name from search results to get full details.
 apkpure info com.whatsapp
 ```
 
-Returns: name, version, version code, developer, category, rating, update date, description, download availability (APK/XAPK/APKS), screenshots.
+Returns: name, version, version code, developer, category, rating, update date, description, download availability (APK/XAPK/APKS), supported CPU architectures, screenshots.
 
 ### Step 3: List Versions
 
@@ -85,6 +92,49 @@ apkpure trending
 ```
 
 Lists trending games in the last 24 hours.
+
+### Extra: Doctor (anti-scraping self-test)
+
+```bash
+apkpure doctor
+```
+
+Diagnoses the anti-scraping setup: which TLS-impersonation backend is active,
+the detected proxy, and a live connectivity test against apkpure.com. Run this
+first whenever search or download stops working. See
+[Anti-Scraping](#anti-scraping--cloudflare) below.
+
+## Anti-Scraping / Cloudflare
+
+APKPure has two front doors with different protection:
+
+- **Android mobile API** (`tapi.pureapk.com`, the default for `search`/`info`/
+  `download`) is protected by Cloudflare **plus** a signed-header protocol
+  (`Ual-Access-*`). The tool passes both automatically — browser TLS
+  fingerprint via `curl_cffi` (Chrome 136) pinned to genuine Cloudflare IPs
+  (resolved via Cloudflare DoH to bypass polluted local DNS) plus full Android
+  device/signature headers. No proxy needed.
+- **Website** (`apkpure.com`, used by `versions`/`trending`/`-m web`) is behind
+  **Cloudflare** TLS fingerprinting (JA3/JA4). Plain Node/OpenSSL requests get
+  blocked no matter what headers they send. The tool handles this automatically:
+
+- **Search & info** default to the mobile API (`tapi.pureapk.com`), reached
+  with browser-TLS impersonation + genuine-IP resolution (see above) — so they
+  work out of the box.
+- **Web scraping fallback & downloads** use a real browser TLS fingerprint when
+  an impersonation backend is installed, falling back to Node otherwise.
+
+For the most reliable results (especially `--mode scraping` and some downloads),
+install **one** backend — the tool auto-detects it, no config needed:
+
+```bash
+pip install curl_cffi          # recommended, cross-platform
+# or install curl-impersonate: https://github.com/lwthiker/curl-impersonate
+```
+
+Verify anytime with `apkpure doctor`. Full details, env-var overrides
+(`APKPURE_IMPERSONATE`, `APKPURE_IMPERSONATE_TARGET`), and the detection order
+are in [references/advanced.md](references/advanced.md#anti-scraping--cloudflare-bypass).
 
 ## Workflows (24 Built-in)
 
@@ -217,12 +267,103 @@ const workflows = await handleSkillRequest({
 });
 ```
 
+
+## Agent Integration Modes
+
+This tool exposes **two distinct integration modes** for AI agents, depending on
+whether a GUI is involved.
+
+### Mode 1: Headless (no GUI)
+
+Call capabilities directly — no running server, no GUI required.
+
+**Via SDK (TypeScript/Node):**
+```typescript
+import { handleSkillRequest } from "apkpure";
+
+const result = await handleSkillRequest({ action: "search", query: "Telegram" });
+const detail = await handleSkillRequest({ action: "info", package: "org.telegram.messenger" });
+const dl = await handleSkillRequest({
+  action: "download",
+  package: "org.telegram.messenger",
+  outputDir: "/tmp/apks",
+});
+```
+
+**Via CLI (shell):**
+```bash
+apkpure search telegram --json
+apkpure info org.telegram.messenger --json
+apkpure download org.telegram.messenger --json
+```
+
+### Mode 2: GUI Control (HTTP API)
+
+When a GUI is running, the Agent can drive it remotely through a local HTTP server.
+The server broadcasts state changes over SSE so the GUI reacts in real time.
+
+**Step 1 — Start the server** (typically done by the GUI application on launch):
+```bash
+apkpure serve --port 13456
+```
+
+**Step 2 — Agent sends commands** (same schema as `handleSkillRequest`):
+```bash
+# Search
+curl -X POST http://127.0.0.1:13456/api/action \
+     -H "Content-Type: application/json" \
+     -d '{"action":"search","query":"Telegram"}'
+
+# Download
+curl -X POST http://127.0.0.1:13456/api/action \
+     -H "Content-Type: application/json" \
+     -d '{"action":"download","package":"org.telegram.messenger","outputDir":"/tmp/apks"}'
+
+# Health check
+curl http://127.0.0.1:13456/api/status
+```
+
+**Step 3 — GUI subscribes to SSE** for live updates:
+```javascript
+const events = new EventSource("http://127.0.0.1:13456/api/events");
+events.onmessage = (e) => {
+  const { type, payload } = JSON.parse(e.data);
+  // type: "action:start" | "action:complete" | "action:error"
+  updateUI(type, payload);
+};
+```
+
+**Available endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/action` | POST | Execute any skill action (JSON body = `SkillRequest`) |
+| `/api/events` | GET | SSE stream — GUI subscribes for real-time state |
+| `/api/status` | GET | Health check: `{"ok":true,"port":13456,"clients":N}` |
+
+**Via SDK:**
+```typescript
+import { ApkPureServer } from "apkpure";
+
+const server = new ApkPureServer(13456);
+await server.start();
+```
+
+### Choosing a mode
+
+| Scenario | Use |
+|----------|-----|
+| Agent running a workflow, no UI involved | Headless — `handleSkillRequest()` or CLI |
+| Agent controlling a web/desktop UI | GUI control — `POST /api/action` to running server |
+| CI/CD, scripts, batch processing | Headless — CLI with `--json` flag |
+| Live demo with visible progress in UI | GUI control — GUI subscribes to `/api/events` |
+
 ## Common Options
 
 | Flag | Description |
 |------|-------------|
 | `-p, --proxy <url>` | Override auto-detected proxy |
-| `-m, --mode <mode>` | `api` (fast), `scraping` (reliable), `auto` (default) |
+| `-m, --mode <mode>` | `android` (default, mobile API), `web` (website), `auto` (Android first, web fallback) |
 | `-o, --output <dir>` | Download output directory (default: `~/.apkpure/downloads/`) |
 | `-v, --version <ver>` | Download specific version |
 | `-j, --json` | Output raw JSON instead of formatted text |
@@ -266,8 +407,10 @@ apkpure workflow download-by-name -q "Signal"
 
 ## Troubleshooting
 
-- **No results / connection error**: Proxy not detected. Pass `--proxy http://127.0.0.1:7897` or set `HTTPS_PROXY`.
-- **Search works but info fails**: Some apps have restricted access. Try `--mode scraping`.
+- **Start here**: run `apkpure doctor` to see the impersonation backend, proxy, and live connectivity in one shot.
+- **Cloudflare block / "Just a moment" / HTTP 403 on scraping**: no TLS-impersonation backend installed. Run `pip install curl_cffi`, then retry. Verify with `apkpure doctor`.
+- **No results / connection error**: Proxy not detected. Pass `--proxy http://127.0.0.1:7897` or set `HTTPS_PROXY`. (The default Android path needs no proxy — this mostly affects `-m web`, `versions`, and `trending`.)
+- **Search works but info fails**: Some apps have restricted access. Try `-m web` — needs an impersonation backend (see above) *and* a reachable apkpure.com; run `apkpure doctor` to check.
 - **Download fails**: CDN URLs expire. Re-run `info` first, then download immediately.
 - **Version not found**: Run `versions` command to see what's available.
 

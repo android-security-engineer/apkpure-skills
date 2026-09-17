@@ -260,13 +260,13 @@ describe("handleSkillRequest", () => {
       );
     });
 
-    test("defaults mode to auto when not specified", async () => {
+    test("defaults mode to android when not specified", async () => {
       await handleSkillRequest({
         action: "search",
         query: "test",
       });
       expect(ApkPure).toHaveBeenCalledWith(
-        expect.objectContaining({ mode: "auto" })
+        expect.objectContaining({ mode: "android" })
       );
     });
 

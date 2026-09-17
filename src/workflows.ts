@@ -400,7 +400,7 @@ async function executeStep(
 export async function runWorkflow(
   workflowName: string,
   params: StepContext,
-  options?: { mode?: "api" | "scraping" | "auto"; proxy?: string; outputDir?: string }
+  options?: { mode?: "android" | "web" | "auto" | "api" | "scraping"; proxy?: string; outputDir?: string }
 ): Promise<WorkflowResult> {
   const definition = BUILT_IN_WORKFLOWS[workflowName];
   if (!definition) {
@@ -413,7 +413,7 @@ export async function runWorkflow(
   }
 
   const sdk = new ApkPure({
-    mode: options?.mode ?? "auto",
+    mode: options?.mode ?? "android",
     proxy: options?.proxy,
   });
 
